@@ -3,6 +3,9 @@ build/
 dist/
 *.spec
 
+# 사용자 데이터 (런타임 생성)
+userdata.json
+
 # Python
 __pycache__/
 *.py[cod]
