@@ -39,6 +39,24 @@ def _resource(*parts):
     return os.path.join(base, *parts)
 
 
+_ITEM_COL_MIN = None
+
+
+def _item_col_minsize():
+    """모든 이벤트의 항목명 중 가장 긴 폭(px). 4개 메뉴의 컬럼 정렬을 통일하기 위함."""
+    global _ITEM_COL_MIN
+    if _ITEM_COL_MIN is None:
+        import tkinter.font as tkfont
+        f = tkfont.Font(font=("Segoe UI", 10))
+        widest = 0
+        for group in EVENT_GROUPS:
+            for ev in group["events"]:
+                for it in ev["items"]:
+                    widest = max(widest, f.measure(it["name"]))
+        _ITEM_COL_MIN = widest + 12
+    return _ITEM_COL_MIN
+
+
 class Store:
     """사용자 입력값을 JSON으로 저장/복원."""
 
@@ -183,7 +201,12 @@ EVENT_GROUPS = [
     },
     {
         "name": "연맹 이벤트",
-        "events": [_placeholder("(이벤트 추가 예정)")],
+        "events": [
+            _placeholder("최강 왕국"),
+            _placeholder("연맹 대작전"),
+            _placeholder("빙원의 왕"),
+            _placeholder("연맹 총동원"),
+        ],
     },
 ]
 
@@ -248,7 +271,8 @@ class EventCalc(ttk.Frame):
         # --- 항목 리스트 (배점 수정 가능 + 필요 수량 자동 계산) ---
         rows = ttk.Frame(self)
         rows.pack(fill="x", pady=(4, 0))
-        # 항목은 내용에 맞춰 자동, 배점/필요수량만 폭 고정
+        # 모든 메뉴에서 컬럼 간격을 동일하게: 항목 폭을 전체 최장 항목명에 맞춰 고정
+        rows.columnconfigure(0, minsize=_item_col_minsize())
         rows.columnconfigure(1, minsize=70)
         rows.columnconfigure(2, minsize=90)
         bold = ("Segoe UI", 10, "bold")
