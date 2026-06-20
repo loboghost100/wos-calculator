@@ -25,7 +25,7 @@ jobs:
         run: pip install pyinstaller
 
       - name: exe 빌드
-        run: pyinstaller --onefile --windowed --name "WOS-Calculator" calc.py --noconfirm
+        run: pyinstaller --onefile --windowed --name "WOS-Calculator" --icon "icon.ico" --add-data "icon.ico;." main.py --noconfirm
 
       - name: 릴리스 생성 및 exe 첨부
         uses: softprops/action-gh-release@v2
