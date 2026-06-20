@@ -9,6 +9,7 @@
 import os
 import sys
 import json
+import math
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
@@ -30,10 +31,12 @@ def _data_file():
     return os.path.join(base, "userdata.json")
 
 
-def _resource(name):
-    """번들된 리소스 경로 (PyInstaller는 임시폴더 _MEIPASS에 풀어둠)."""
+def _resource(*parts):
+    """번들된 리소스 경로 (PyInstaller는 임시폴더 _MEIPASS에 풀어둠).
+    예: _resource("assets", "icon.ico")
+    """
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, name)
+    return os.path.join(base, *parts)
 
 
 class Store:
@@ -49,7 +52,9 @@ class Store:
         self._root = root
 
     def event(self, key):
-        return self.data.setdefault(key, {"target": "", "items": {}})
+        return self.data.setdefault(
+            key, {"current": "", "target": "", "items": {}, "points": {}}
+        )
 
     def get(self, key, default=None):
         return self.data.get(key, default)
@@ -89,12 +94,23 @@ class Store:
 #   event.items       : 점수 행동 [{name, points(1단위당 점수), unit}]
 #   event.milestones  : 보상 단계 [{score, reward}] (점수 오름차순)
 # ---------------------------------------------------------------------------
-def _placeholder(name):
+def _placeholder(name, icon=None):
     """아직 내용 미정인 자리표시용 이벤트."""
     return {
         "name": name,
-        "items": [{"name": "(행동 미정)", "points": 0, "unit": ""}],
-        "milestones": [],
+        "icon": icon,
+        "rewards": [],
+        "items": [{"name": "(행동 미정)", "points": 0}],
+    }
+
+
+def _event(name, items, icon=None, rewards=None):
+    """(이름, [(항목명, 기본배점), ...], 사이드바 아이콘, 보상 아이콘 목록) -> 이벤트 dict."""
+    return {
+        "name": name,
+        "icon": icon,
+        "rewards": rewards or [],
+        "items": [{"name": n, "points": p} for n, p in items],
     }
 
 
@@ -105,7 +121,65 @@ EVENT_GROUPS = [
     },
     {
         "name": "개인 이벤트",
-        "events": [_placeholder("(이벤트 추가 예정)")],
+        "events": [
+            _event("군비 경쟁1", [
+                ("불의 수정", 100),
+                ("불의 수정 조각", 50),
+                ("제련된 불의 수정", 0),
+                ("영주 장비", 3),
+                ("레어 영웅 파편", 15),
+                ("에픽 영웅 파편", 50),
+                ("레전드 영웅 파편", 125),
+                ("건설·연구·훈련 가속", 1),
+                ("전문가 표식", 200),
+                ("학문의 책", 2),
+            ], icon="icon_arms.png", rewards=[
+                "icon_diamond.png",
+                "icon_legend_charm_part.png",
+                "icon_design_plan.png",
+                "icon_legend_skillbook.png",
+            ]),
+            _event("군비 경쟁2", [
+                ("불의 수정", 100),
+                ("불의 수정 조각", 50),
+                ("제련된 불의 수정", 0),
+                ("영주 장비", 3),
+                ("마스터리석", 30),
+                ("미스릴", 10),
+                ("전용 장비", 5),
+                ("건설·연구·훈련 가속", 1),
+            ], icon="icon_arms.png", rewards=[
+                "icon_diamond.png",
+                "icon_legend_charm_part.png",
+                "icon_legend_skillbook.png",
+                "icon_legend_explore_skillbook.png",
+            ]),
+            _event("사관의 계획1", [
+                ("영주 보석", 50),
+                ("마스터리석", 30),
+                ("전용 장비", 5),
+                ("병사 훈련", 1),
+            ], icon="icon_saquan.png", rewards=[
+                "icon_diamond.png",
+                "icon_legend_charm_part.png",
+                "icon_mastery_stone.png",
+                "icon_legend_skillbook.png",
+            ]),
+            _event("사관의 계획2", [
+                ("영주 장비", 3),
+                ("레어 영웅 파편", 15),
+                ("에픽 영웅 파편", 50),
+                ("레전드 영웅 파편", 125),
+                ("마스터리석", 30),
+                ("전용 장비", 5),
+                ("미스릴", 10),
+            ], icon="icon_saquan.png", rewards=[
+                "icon_diamond.png",
+                "icon_legend_charm_part.png",
+                "icon_legend_skillbook.png",
+                "icon_charm_design.png",
+            ]),
+        ],
     },
     {
         "name": "연맹 이벤트",
@@ -120,56 +194,79 @@ for _group in EVENT_GROUPS:
 
 
 class EventCalc(ttk.Frame):
-    """이벤트 하나의 계산기 화면 (오른쪽 패널에 표시)."""
+    """이벤트 점수 계산기.
+
+    현재 점수 / 목표 점수를 입력하면, 부족한 점수를 채우기 위해 각 항목을
+    몇 개 써야 하는지 계산해서 보여준다. 배점은 유저가 수정·저장할 수 있다.
+    (예: 목표-현재=2000, 불의 수정 100점 -> 20개)
+    """
 
     def __init__(self, master, event, store):
         super().__init__(master, padding=14)
         self.event = event
         self.store = store
         self.key = event["_key"]
-        self.qty_vars = []
         saved = store.event(self.key)
-        saved_items = saved.get("items", {})
+        saved_points = saved.get("points", {})
 
-        ttk.Label(self, text=event["name"], font=("Segoe UI", 14, "bold")).pack(anchor="w")
-        ttk.Separator(self).pack(fill="x", pady=8)
+        self.point_vars = []
+        self.need_labels = []
 
-        # --- 점수 행동 리스트 (헤더) ---
-        rows = ttk.Frame(self)
-        rows.pack(fill="x")
-        ttk.Label(rows, text="행동", width=20, font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w")
-        ttk.Label(rows, text="단위당 점수", width=11, font=("Segoe UI", 10, "bold")).grid(row=0, column=1)
-        ttk.Label(rows, text="수량", width=12, font=("Segoe UI", 10, "bold")).grid(row=0, column=2)
-        ttk.Label(rows, text="소계", width=11, font=("Segoe UI", 10, "bold")).grid(row=0, column=3)
+        # --- 타이틀 + 보상 아이콘 나열 ---
+        header = ttk.Frame(self)
+        header.pack(fill="x", anchor="w")
+        ttk.Label(header, text=event["name"], font=("Segoe UI", 14, "bold")).pack(side="left")
+        self._reward_imgs = []  # GC 방지용 참조 보관
+        for j, icon in enumerate(event.get("rewards", [])):
+            try:
+                img = tk.PhotoImage(file=_resource("assets", icon))
+            except Exception:
+                continue
+            self._reward_imgs.append(img)
+            ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
 
-        # --- 점수 행동 리스트 (행들) ---
-        self.subtotal_labels = []
-        for i, item in enumerate(event["items"], start=1):
-            ttk.Label(rows, text=item["name"], width=20).grid(row=i, column=0, sticky="w", pady=2)
-            ttk.Label(rows, text=f'{item["points"]:,} 점', width=11, anchor="e").grid(row=i, column=1, padx=4)
+        ttk.Separator(self).pack(fill="x", pady=6)
 
-            var = tk.StringVar(value=saved_items.get(item["name"], "0"))
-            var.trace_add("write", lambda *a: self.recalc())
-            ttk.Entry(rows, textvariable=var, width=12, justify="right").grid(row=i, column=2, padx=4)
-            self.qty_vars.append(var)
-
-            sub = ttk.Label(rows, text="0 점", width=11, anchor="e")
-            sub.grid(row=i, column=3, padx=4)
-            self.subtotal_labels.append(sub)
-
-        ttk.Separator(self).pack(fill="x", pady=10)
-
-        # --- 목표 점수 입력 ---
-        target_row = ttk.Frame(self)
-        target_row.pack(fill="x")
-        ttk.Label(target_row, text="목표 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        # --- 현재 / 목표 점수 ---
+        score_row = ttk.Frame(self)
+        score_row.pack(fill="x", pady=(0, 4))
+        ttk.Label(score_row, text="현재 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        self.current_var = tk.StringVar(value=saved.get("current", ""))
+        self.current_var.trace_add("write", lambda *a: self.recalc())
+        ttk.Entry(score_row, textvariable=self.current_var, width=12, justify="right").pack(side="left", padx=(4, 16))
+        ttk.Label(score_row, text="목표 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
         self.target_var = tk.StringVar(value=saved.get("target", ""))
         self.target_var.trace_add("write", lambda *a: self.recalc())
-        ttk.Entry(target_row, textvariable=self.target_var, width=14, justify="right").pack(side="left", padx=6)
+        ttk.Entry(score_row, textvariable=self.target_var, width=12, justify="right").pack(side="left", padx=4)
 
-        # --- 결과 표시 ---
-        self.result = ttk.Label(self, text="", font=("Segoe UI", 11), justify="left", foreground="#1a5fb4")
-        self.result.pack(anchor="w", pady=(12, 0))
+        # 필요 점수 표시
+        self.gap_label = ttk.Label(self, text="", font=("Segoe UI", 11, "bold"), foreground="#1a5fb4")
+        self.gap_label.pack(anchor="w", pady=(2, 6))
+
+        ttk.Separator(self).pack(fill="x", pady=2)
+
+        # --- 항목 리스트 (배점 수정 가능 + 필요 수량 자동 계산) ---
+        rows = ttk.Frame(self)
+        rows.pack(fill="x", pady=(4, 0))
+        # 항목은 내용에 맞춰 자동, 배점/필요수량만 폭 고정
+        rows.columnconfigure(1, minsize=70)
+        rows.columnconfigure(2, minsize=90)
+        bold = ("Segoe UI", 10, "bold")
+        ttk.Label(rows, text="항목", font=bold).grid(row=0, column=0, sticky="w", padx=3, pady=(0, 2))
+        ttk.Label(rows, text="배점", font=bold).grid(row=0, column=1, sticky="e", padx=3, pady=(0, 2))
+        ttk.Label(rows, text="필요 수량", font=bold).grid(row=0, column=2, sticky="e", padx=3, pady=(0, 2))
+
+        for i, item in enumerate(event["items"], start=1):
+            ttk.Label(rows, text=item["name"]).grid(row=i, column=0, sticky="w", padx=3, pady=2)
+
+            pvar = tk.StringVar(value=saved_points.get(item["name"], str(item["points"])))
+            pvar.trace_add("write", lambda *a: self.recalc())
+            ttk.Entry(rows, textvariable=pvar, width=8, justify="right").grid(row=i, column=1, sticky="e", padx=3, pady=2)
+            self.point_vars.append(pvar)
+
+            need = ttk.Label(rows, text="-", anchor="e", font=("Segoe UI", 10))
+            need.grid(row=i, column=2, sticky="e", padx=3, pady=2)
+            self.need_labels.append(need)
 
         self.recalc()
 
@@ -181,33 +278,32 @@ class EventCalc(ttk.Frame):
             return 0
 
     def recalc(self):
-        total = 0
-        for item, var, lbl in zip(self.event["items"], self.qty_vars, self.subtotal_labels):
-            sub = self._to_num(var.get()) * item["points"]
-            total += sub
-            lbl.config(text=f"{int(sub):,} 점")
-
-        lines = [f"현재 총점: {int(total):,} 점"]
-
+        current = self._to_num(self.current_var.get())
         target = self._to_num(self.target_var.get())
-        if target > 0:
-            remain = target - total
-            if remain > 0:
-                lines.append(f"목표까지: {int(remain):,} 점 부족")
+        gap = target - current
+
+        if target <= 0:
+            self.gap_label.config(text="목표 점수를 입력하세요.")
+        elif gap <= 0:
+            self.gap_label.config(text=f"이미 목표 달성! ({int(-gap):,} 점 초과)")
+        else:
+            self.gap_label.config(text=f"필요 점수 (목표 - 현재): {int(gap):,} 점")
+
+        for pvar, lbl in zip(self.point_vars, self.need_labels):
+            pts = self._to_num(pvar.get())
+            if target <= 0 or gap <= 0:
+                lbl.config(text="0개" if gap <= 0 and target > 0 else "-")
+            elif pts <= 0:
+                lbl.config(text="—")
             else:
-                lines.append(f"목표 달성! (+{int(-remain):,} 점 초과)")
+                lbl.config(text=f"{math.ceil(gap / pts):,}개")
 
-        for m in self.event["milestones"]:
-            mark = "✅" if total >= m["score"] else f"❌ ({int(m['score'] - total):,} 점 부족)"
-            lines.append(f"  {m['score']:,}점 [{m['reward']}] {mark}")
-
-        self.result.config(text="\n".join(lines))
-
-        # 입력값 저장소에 반영 + 지연 저장
+        # 저장 (현재/목표/배점)
         rec = self.store.event(self.key)
+        rec["current"] = self.current_var.get()
         rec["target"] = self.target_var.get()
-        rec["items"] = {item["name"]: var.get()
-                        for item, var in zip(self.event["items"], self.qty_vars)}
+        rec["points"] = {item["name"]: p.get()
+                         for item, p in zip(self.event["items"], self.point_vars)}
         self.store.schedule_save()
 
 
@@ -228,8 +324,8 @@ class Sidebar(tk.Frame):
         super().__init__(master, bg=SIDEBAR_BG, width=200)
         self.pack_propagate(False)
         self.on_event_select = on_event_select
-        self.active_btn = None       # 현재 선택된 버튼
-        self.first = None            # (버튼, payload) 자동 선택용
+        self.active = None           # 현재 선택된 항목(primary 위젯)
+        self.first = None            # (primary, payload) 자동 선택용
 
         for group in EVENT_GROUPS:
             if group["events"]:
@@ -240,14 +336,12 @@ class Sidebar(tk.Frame):
     def _add_standalone(self, group):
         # 하위 항목 없는 단독 항목 (이벤트가 아닌 별개 기능)
         payload = {"name": group["name"], "page": "standalone"}
-        btn = tk.Button(
-            self, text=f"  {group['name']}", anchor="w",
-            bg=GROUP_BG, fg=FG, font=("Segoe UI", 11, "bold"),
-            relief="flat", bd=0, padx=10, pady=10, cursor="hand2",
-            activebackground=GROUP_HOVER, activeforeground=FG,
-        )
-        self._make_selectable(btn, GROUP_BG, GROUP_HOVER, payload)
-        btn.pack(fill="x")
+        row = tk.Frame(self, bg=GROUP_BG, cursor="hand2")
+        lbl = tk.Label(row, text=group["name"], bg=GROUP_BG, fg=FG,
+                       font=("Segoe UI", 11, "bold"), anchor="w")
+        lbl.pack(side="left", padx=12, pady=10)
+        row.pack(fill="x")
+        self._make_selectable(row, [row, lbl], GROUP_BG, GROUP_HOVER, payload)
 
     def _add_group(self, group):
         # 펼침 상태와 하위 버튼들을 담을 컨테이너
@@ -278,39 +372,58 @@ class Sidebar(tk.Frame):
             self._add_event(sub_frame, event)
 
     def _add_event(self, parent, event):
-        btn = tk.Button(
-            parent, text=f"      {event['name']}", anchor="w",
-            bg=SUB_BG, fg=FG, font=("Segoe UI", 10),
-            relief="flat", bd=0, padx=10, pady=8, cursor="hand2",
-            activebackground=SUB_HOVER, activeforeground=FG,
-        )
-        self._make_selectable(btn, SUB_BG, SUB_HOVER, event)
-        btn.pack(fill="x")
+        # Frame + (아이콘 라벨) + 텍스트 라벨 -> 아이콘/텍스트 간격을 직접 제어
+        row = tk.Frame(parent, bg=SUB_BG, cursor="hand2")
+        targets = [row]
+        text_padx = (14, 14)
+        icon = event.get("icon")
+        if icon:
+            try:
+                img = tk.PhotoImage(file=_resource("assets", icon))
+                il = tk.Label(row, image=img, bg=SUB_BG)
+                il.image = img  # 가비지 컬렉션 방지
+                il.pack(side="left", padx=(14, 0), pady=6)
+                targets.append(il)
+                text_padx = (0, 14)
+            except Exception:
+                pass
+        tl = tk.Label(row, text=event["name"], bg=SUB_BG, fg=FG,
+                      font=("Segoe UI", 10), anchor="w")
+        tl.pack(side="left", padx=text_padx, pady=6)
+        targets.append(tl)
+        row.pack(fill="x")
+        self._make_selectable(row, targets, SUB_BG, SUB_HOVER, event)
 
-    def _make_selectable(self, btn, normal, hover, payload):
-        btn._normal_bg = normal
-        btn._hover_bg = hover
-        btn.config(command=lambda: self._select(btn, payload))
-        self._hover(btn, normal, hover)
+    def _make_selectable(self, primary, targets, normal, hover, payload):
+        primary._paint = targets
+        primary._normal_bg = normal
+        for w in targets:
+            w.bind("<Button-1>", lambda e, p=primary, pl=payload: self._select(p, pl))
+            w.bind("<Enter>", lambda e, p=primary, h=hover: self._paint(p, h) if p is not self.active else None)
+            w.bind("<Leave>", lambda e, p=primary, n=normal: self._paint(p, n) if p is not self.active else None)
         if self.first is None:
-            self.first = (btn, payload)
+            self.first = (primary, payload)
+
+    def _paint(self, primary, color):
+        for w in primary._paint:
+            w.config(bg=color)
 
     def _hover(self, btn, normal, hover):
-        # 선택된 버튼은 호버 색을 덮어쓰지 않도록 처리
-        btn.bind("<Enter>", lambda e: btn.config(bg=hover) if btn is not self.active_btn else None)
-        btn.bind("<Leave>", lambda e: btn.config(bg=normal) if btn is not self.active_btn else None)
+        # 그룹 헤더(단일 버튼)용 호버
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover))
+        btn.bind("<Leave>", lambda e: btn.config(bg=normal))
 
-    def _select(self, btn, payload):
-        if self.active_btn is not None:
-            self.active_btn.config(bg=getattr(self.active_btn, "_normal_bg", SUB_BG))
-        self.active_btn = btn
-        btn.config(bg=SUB_ACTIVE)
+    def _select(self, primary, payload):
+        if self.active is not None:
+            self._paint(self.active, self.active._normal_bg)
+        self.active = primary
+        self._paint(primary, SUB_ACTIVE)
         self.on_event_select(payload)
 
     def select_first(self):
         if self.first:
-            btn, payload = self.first
-            self._select(btn, payload)
+            primary, payload = self.first
+            self._select(primary, payload)
 
 
 class TimePage(ttk.Frame):
@@ -497,9 +610,9 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("740x540")
+        self.geometry("780x640")
         try:
-            self.iconbitmap(_resource("icon.ico"))
+            self.iconbitmap(_resource("assets", "icon.ico"))
         except Exception:
             pass
 
