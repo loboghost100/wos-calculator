@@ -27,7 +27,11 @@ jobs:
       - name: exe 빌드
         run: pyinstaller --onefile --windowed --name "WOS-Calculator" --icon "assets/icon.ico" --add-data "assets;assets" main.py --noconfirm
 
-      - name: 릴리스 생성 및 exe 첨부
+      - name: zip으로 압축
+        run: Compress-Archive -Path dist/WOS-Calculator.exe -DestinationPath dist/WOS-Calculator.zip
+        shell: pwsh
+
+      - name: 릴리스 생성 및 zip 첨부
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/WOS-Calculator.exe
+          files: dist/WOS-Calculator.zip
