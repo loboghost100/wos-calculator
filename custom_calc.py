@@ -49,7 +49,6 @@ class CustomEventCalc(ttk.Frame):
         _te = ttk.Entry(score_row, textvariable=self.target_var, width=12, justify="right")
         _te.pack(side="left", padx=4)
         _te.bind("<FocusOut>", lambda e: self.recalc())
-        ttk.Button(score_row, text="초기화", command=self._reset_scores).pack(side="left", padx=(8, 0))
 
         self.gap_label = ttk.Label(self, text="", font=("Segoe UI", 11, "bold"), foreground="#1a5fb4")
         self.gap_label.pack(anchor="w", pady=(2, 6))
@@ -137,11 +136,6 @@ class CustomEventCalc(ttk.Frame):
             del self.items[idx]
             self._save()
             self._render()
-
-    def _reset_scores(self):
-        if messagebox.askyesno("초기화", "현재 점수와 목표 점수를 초기화할까요?"):
-            self.current_var.set("")
-            self.target_var.set("")
 
     def _reset_items(self):
         if not self.items:
