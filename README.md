@@ -1,13 +1,18 @@
 # WOS 이벤트 계산기
 
-White Out Survival 이벤트에서 **목표 점수까지 아이템을 몇 개 써야 하는지** 계산해주는 프로그램입니다.
+## ⚠️ 실행 시 주의사항
+
+이 프로그램은 코드 서명이 없어서 Windows가 보안 경고를 띄울 수 있습니다. (악성 코드가 아니라 서명 비용 문제입니다.)
+
+- **"Windows의 PC를 보호했습니다"(SmartScreen)** 창이 뜨면
+  → **추가 정보** → **실행**
+
+- **스마트 앱 컨트롤(Smart App Control)** 이 켜져 있어 아예 차단되면
+  → 설정 → 개인 정보 및 보안 → Windows 보안 → 앱 및 브라우저 컨트롤 → 스마트 앱 컨트롤 → **끔**
+  (※ 한 번 끄면 Windows 재설치 전까지 다시 켤 수 없습니다)
 
 ## 사용법
 
-1. [Releases](https://github.com/loboghost100/wos-calculator/releases)에서 최신 `WOS-Calculator.zip`을 다운로드
+1. [Releases](https://github.com/loboghost100/wos-calculator/releases)에서 `WOS-Calculator.zip` 다운로드
 2. 압축을 풀고 `WOS-Calculator.exe` 실행
-3. 이벤트를 고르고 **현재 점수**와 **목표 점수**를 입력하면 항목별 필요 수량이 나옵니다
-
-설치 과정은 없고, 입력한 값은 자동 저장되어 다시 켜도 유지됩니다.
-
-> ⚠️ 실행 시 Windows가 "Windows의 PC 보호" 경고를 띄우면 **추가 정보 → 실행**을 눌러주세요.
+3. 이벤트를 고르고 현재 점수·목표 점수를 입력
