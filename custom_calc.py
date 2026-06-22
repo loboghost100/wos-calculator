@@ -1,9 +1,9 @@
 """유저가 항목/배점을 직접 추가·삭제하는 커스텀 이벤트 계산기."""
-import math
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from resources import is_number, comma_format, comma_normalize, to_num
+from resources import (is_number, comma_format, comma_normalize, to_num,
+                       gap_text, need_text)
 
 
 class CustomEventCalc(ttk.Frame):
@@ -149,22 +149,11 @@ class CustomEventCalc(ttk.Frame):
         current = to_num(self.current_var.get())
         target = to_num(self.target_var.get())
         gap = target - current
-
-        if target <= 0:
-            self.gap_label.config(text="목표 점수를 입력하세요.")
-        elif gap <= 0:
-            self.gap_label.config(text=f"이미 목표 달성! ({int(-gap):,} 점 초과)")
-        else:
-            self.gap_label.config(text=f"필요 점수 (목표 - 현재): {int(gap):,} 점")
+        self.gap_label.config(text=gap_text(target, current))
 
         for it, lbl in zip(self.items, self.need_labels):
             pts = to_num(it.get("points", "0"))
-            if target <= 0 or gap <= 0:
-                lbl.config(text="0개" if gap <= 0 and target > 0 else "-")
-            elif pts <= 0:
-                lbl.config(text="—")
-            else:
-                lbl.config(text=f"{math.ceil(gap / pts):,}개")
+            lbl.config(text=need_text(gap, target, pts))
 
         self._save()
 

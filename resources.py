@@ -1,4 +1,5 @@
 """파일 경로 / 입력 검증 등 공용 헬퍼."""
+import math
 import os
 import sys
 
@@ -73,3 +74,22 @@ def to_num(s):
         return float(str(s).replace(",", "").strip() or 0)
     except ValueError:
         return 0
+
+
+def gap_text(target, current):
+    """현재/목표 점수로 안내 문구 생성 (일반/커스텀 이벤트 공용)."""
+    gap = target - current
+    if target <= 0:
+        return "목표 점수를 입력하세요."
+    if gap <= 0:
+        return f"이미 목표 달성! ({int(-gap):,} 점 초과)"
+    return f"필요 점수 (목표 - 현재): {int(gap):,} 점"
+
+
+def need_text(gap, target, points):
+    """항목별 필요 수량 문구 (points는 실효 배점). 일반/커스텀 이벤트 공용."""
+    if target <= 0 or gap <= 0:
+        return "0개" if (gap <= 0 and target > 0) else "-"
+    if points <= 0:
+        return "—"
+    return f"{math.ceil(gap / points):,}개"

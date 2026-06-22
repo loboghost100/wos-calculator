@@ -1,9 +1,9 @@
 """일반 이벤트 점수 계산기 (군비/사관 등)."""
-import math
 import tkinter as tk
 from tkinter import ttk
 
-from resources import resource, is_number, comma_format, comma_normalize, to_num
+from resources import (resource, is_number, comma_format, comma_normalize,
+                       to_num, gap_text, need_text)
 from config import item_col_minsize
 
 
@@ -125,13 +125,7 @@ class EventCalc(ttk.Frame):
         current = to_num(self.current_var.get())
         target = to_num(self.target_var.get())
         gap = target - current
-
-        if target <= 0:
-            self.gap_label.config(text="목표 점수를 입력하세요.")
-        elif gap <= 0:
-            self.gap_label.config(text=f"이미 목표 달성! ({int(-gap):,} 점 초과)")
-        else:
-            self.gap_label.config(text=f"필요 점수 (목표 - 현재): {int(gap):,} 점")
+        self.gap_label.config(text=gap_text(target, current))
 
         mult = self.bonus_getter() if self.bonus_getter else 1.0
         for i, (need_lbl, plabel) in enumerate(zip(self.need_labels, self.point_labels)):
@@ -141,12 +135,7 @@ class EventCalc(ttk.Frame):
             eff = base * mult                      # 실효 배점 = 기본 × 배율
             if plabel is not None:
                 plabel.config(text=_fmt_points(eff))
-            if target <= 0 or gap <= 0:
-                need_lbl.config(text="0개" if gap <= 0 and target > 0 else "-")
-            elif eff <= 0:
-                need_lbl.config(text="—")
-            else:
-                need_lbl.config(text=f"{math.ceil(gap / eff):,}개")
+            need_lbl.config(text=need_text(gap, target, eff))
 
         # 저장 (현재/목표 + 편집 가능한 경우에만 기본 배점)
         rec = self.store.event(self.key)
