@@ -17,6 +17,19 @@ from event_calc import EventCalc
 from editable_calc import EditableCalc
 
 
+def _roman(n):
+    """1 -> 'I', 2 -> 'II' … (탭 라벨용)."""
+    table = [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"),
+             (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"),
+             (5, "V"), (4, "IV"), (1, "I")]
+    out = []
+    for v, s in table:
+        while n >= v:
+            out.append(s)
+            n -= v
+    return "".join(out)
+
+
 class MultiDayEventCalc(ttk.Frame):
     def __init__(self, master, event, store):
         super().__init__(master, padding=14)
@@ -31,6 +44,12 @@ class MultiDayEventCalc(ttk.Frame):
         header = ttk.Frame(self)
         header.pack(fill="x", anchor="w")
         ttk.Label(header, text=event["name"], font=("Segoe UI", 14, "bold")).pack(side="left")
+        if event.get("dynamic"):
+            # Custom(동적) 페이지: 이름 옆 유저 제목 입력칸
+            self.title_var = tk.StringVar(value=store.event(self.base_key).get("title", ""))
+            self.title_var.trace_add("write", lambda *a: self._save_title())
+            ttk.Entry(header, textvariable=self.title_var, width=24,
+                      font=("Segoe UI", 12)).pack(side="left", padx=(10, 0))
         self._reward_imgs = []  # GC 방지용 참조 보관
         for j, icon in enumerate(event.get("rewards", [])):
             try:
@@ -59,14 +78,16 @@ class MultiDayEventCalc(ttk.Frame):
             self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
             self.bonus_getter = self._mult
 
-        # 탭 개수 입력: dynamic 이벤트(연맹 Custom)에만 표시.
+        # 탭 개수 조절: dynamic 이벤트(연맹 Custom)에만. [−] N [+] (− 왼쪽, + 오른쪽)
         if self.dynamic:
-            self.count_var = tk.StringVar(value=str(self._saved_count()))
-            vcmd2 = (self.register(is_number), "%P")
-            ttk.Spinbox(tabs, from_=1, to=60, width=4, textvariable=self.count_var,
-                        validate="key", validatecommand=vcmd2).pack(side="right", padx=(4, 0))
-            ttk.Label(tabs, text="탭 개수", font=("Segoe UI", 10, "bold")).pack(side="right", padx=(12, 0))
-            self.count_var.trace_add("write", lambda *a: self._on_count_change())
+            self.day_count = self._saved_count()
+            ctrl = ttk.Frame(tabs)
+            ctrl.pack(side="right")
+            ttk.Label(ctrl, text="탭 개수", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 8))
+            ttk.Button(ctrl, text="−", width=2, command=lambda: self._step(-1)).pack(side="left")
+            self.count_label = ttk.Label(ctrl, text=str(self.day_count), width=3, anchor="center")
+            self.count_label.pack(side="left", padx=2)
+            ttk.Button(ctrl, text="+", width=2, command=lambda: self._step(1)).pack(side="left")
 
         ttk.Separator(self).pack(fill="x", pady=8)
 
@@ -87,7 +108,7 @@ class MultiDayEventCalc(ttk.Frame):
     def _make_days(self):
         if self.dynamic:
             n = self._saved_count()
-            return [{"label": str(i), "items": []} for i in range(1, n + 1)]
+            return [{"label": _roman(i), "items": []} for i in range(1, n + 1)]
         return self.event["days"]
 
     def _rebuild_tabs(self):
@@ -110,18 +131,16 @@ class MultiDayEventCalc(ttk.Frame):
         if target:
             self.show_day(target)
 
-    def _on_count_change(self):
-        raw = self.count_var.get()
-        if not raw:          # 편집 중(빈칸)이면 무시
+    def _step(self, delta):
+        n = max(1, min(60, self.day_count + delta))
+        if n == self.day_count:
             return
-        try:
-            n = max(1, int(raw))
-        except ValueError:
-            return
+        self.day_count = n
         rec = self.store.event(self.base_key)
         rec["day_count"] = str(n)
         self.store.schedule_save()
-        self.days = [{"label": str(i), "items": []} for i in range(1, n + 1)]
+        self.count_label.config(text=str(n))
+        self.days = [{"label": _roman(i), "items": []} for i in range(1, n + 1)]
         self._rebuild_tabs()
 
     def show_day(self, day):
@@ -160,3 +179,8 @@ class MultiDayEventCalc(ttk.Frame):
         self.store.schedule_save()
         for body in self.bodies.values():
             body.recalc()
+
+    def _save_title(self):
+        rec = self.store.event(self.base_key)
+        rec["title"] = self.title_var.get()
+        self.store.schedule_save()
