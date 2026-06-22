@@ -24,6 +24,25 @@ def _placeholder(name, icon=None):
     }
 
 
+def _day(label, items, defaults=None):
+    """멀티데이 이벤트의 하루 분 (날짜라벨, [(항목명, 배점), ...], 현재/목표 초기값)."""
+    return {
+        "label": label,
+        "items": [{"name": n, "points": p} for n, p in items],
+        "defaults": defaults or {},
+    }
+
+
+def _multiday_event(name, days, icon=None, rewards=None):
+    """날짜별로 항목이 다른 이벤트(예: 연맹 대작전 6일). days = [_day(...), ...]."""
+    return {
+        "name": name,
+        "icon": icon,
+        "rewards": rewards or [],
+        "days": days,
+    }
+
+
 def _event(name, items, icon=None, rewards=None, defaults=None):
     """(이름, [(항목명, 기본배점), ...], 사이드바 아이콘, 보상 아이콘 목록) -> 이벤트 dict.
 
@@ -116,7 +135,14 @@ EVENT_GROUPS = [
         "name": "연맹 이벤트",
         "events": [
             _placeholder("최강 왕국"),
-            _placeholder("연맹 대작전"),
+            _multiday_event("연맹 대작전", [
+                _day("I", [("(항목 미정)", 0)]),
+                _day("II", [("(항목 미정)", 0)]),
+                _day("III", [("(항목 미정)", 0)]),
+                _day("IV", [("(항목 미정)", 0)]),
+                _day("V", [("(항목 미정)", 0)]),
+                _day("VI", [("(항목 미정)", 0)]),
+            ]),
             _placeholder("빙원의 왕"),
             _placeholder("연맹 총동원"),
         ],
@@ -141,7 +167,11 @@ def item_col_minsize():
         widest = 0
         for group in EVENT_GROUPS:
             for ev in group["events"]:
-                for it in ev["items"]:
-                    widest = max(widest, f.measure(it["name"]))
+                # 일반 이벤트는 items, 멀티데이 이벤트는 days[].items
+                item_lists = [ev["items"]] if "items" in ev else \
+                    [d["items"] for d in ev.get("days", [])]
+                for items in item_lists:
+                    for it in items:
+                        widest = max(widest, f.measure(it["name"]))
         _ITEM_COL_MIN = widest + 12
     return _ITEM_COL_MIN

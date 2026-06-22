@@ -18,6 +18,7 @@ from store import Store
 from sidebar import Sidebar
 from event_calc import EventCalc
 from custom_calc import CustomEventCalc
+from multiday_calc import MultiDayEventCalc
 from time_page import TimePage
 
 
@@ -61,6 +62,8 @@ class App(tk.Tk):
                     self.calcs[key] = TimePage(self.right, self.store)
                 else:
                     self.calcs[key] = self._make_placeholder_page(payload["name"])
+            elif payload.get("days"):
+                self.calcs[key] = MultiDayEventCalc(self.right, payload, self.store)
             elif payload.get("custom"):
                 self.calcs[key] = CustomEventCalc(self.right, payload, self.store)
             else:

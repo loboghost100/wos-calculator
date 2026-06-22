@@ -15,8 +15,8 @@ class EventCalc(ttk.Frame):
     (예: 목표-현재=2000, 불의 수정 100점 -> 20개)
     """
 
-    def __init__(self, master, event, store):
-        super().__init__(master, padding=14)
+    def __init__(self, master, event, store, show_header=True):
+        super().__init__(master, padding=14 if show_header else 0)
         self.event = event
         self.store = store
         self.key = event["_key"]
@@ -29,19 +29,21 @@ class EventCalc(ttk.Frame):
         self._vcmd = (self.register(is_number), "%P")  # 숫자만 입력 허용
 
         # --- 타이틀 + 보상 아이콘 나열 ---
-        header = ttk.Frame(self)
-        header.pack(fill="x", anchor="w")
-        ttk.Label(header, text=event["name"], font=("Segoe UI", 14, "bold")).pack(side="left")
+        # (멀티데이 페이지에 본문으로 포함될 땐 타이틀/보상을 상위에서 한 번만 그리므로 생략)
         self._reward_imgs = []  # GC 방지용 참조 보관
-        for j, icon in enumerate(event.get("rewards", [])):
-            try:
-                img = tk.PhotoImage(file=resource("assets", icon))
-            except Exception:
-                continue
-            self._reward_imgs.append(img)
-            ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
+        if show_header:
+            header = ttk.Frame(self)
+            header.pack(fill="x", anchor="w")
+            ttk.Label(header, text=event["name"], font=("Segoe UI", 14, "bold")).pack(side="left")
+            for j, icon in enumerate(event.get("rewards", [])):
+                try:
+                    img = tk.PhotoImage(file=resource("assets", icon))
+                except Exception:
+                    continue
+                self._reward_imgs.append(img)
+                ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
 
-        ttk.Separator(self).pack(fill="x", pady=6)
+            ttk.Separator(self).pack(fill="x", pady=6)
 
         # --- 현재 / 목표 점수 ---
         score_row = ttk.Frame(self)
