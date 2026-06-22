@@ -44,6 +44,12 @@ class EditableCalc(ttk.Frame):
             header = ttk.Frame(self)
             header.pack(fill="x", anchor="w")
             ttk.Label(header, text=event["name"], font=("Segoe UI", 14, "bold")).pack(side="left")
+            if event.get("custom"):
+                # Custom 탭: 이름 옆에 유저 제목 입력칸
+                self.title_var = tk.StringVar(value=saved.get("title", ""))
+                self.title_var.trace_add("write", lambda *a: self._save_title())
+                ttk.Entry(header, textvariable=self.title_var, width=24,
+                          font=("Segoe UI", 12)).pack(side="left", padx=(10, 0))
             for j, icon in enumerate(event.get("rewards", [])):
                 try:
                     img = tk.PhotoImage(file=resource("assets", icon))
@@ -198,4 +204,9 @@ class EditableCalc(ttk.Frame):
         # 유저가 항목을 편집했을 때만 custom_items 저장 (기본값 위에 덮어씀)
         rec = self.store.event(self.key)
         rec["custom_items"] = self.items
+        self.store.schedule_save()
+
+    def _save_title(self):
+        rec = self.store.event(self.key)
+        rec["title"] = self.title_var.get()
         self.store.schedule_save()
