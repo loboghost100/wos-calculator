@@ -111,7 +111,7 @@ class TrainingCalc(ttk.Frame):
                 total_power += power
                 lines.append(f"  {name}: {units:,}명 · {_fmt_time(actual_t)}  →  {int(round(power)):,} 전투력")
             lines.append("")
-            lines.append(f"합계: {int(round(total_power)):,} 전투력 (목표 달성 ✅)")
+            lines.append(f"합계: {int(round(total_power)):,} 전투력")
             self.result.config(text="\n".join(lines))
         else:
             self.result.config(text="목표 전투력과 병종별 전투력·훈련시간을 입력하세요.")
