@@ -31,19 +31,7 @@ class MultiDayEventCalc(ttk.Frame):
             self._reward_imgs.append(img)
             ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
 
-        # --- 배점 보너스 % (페이지 공통: 모든 날짜에 동일 적용) ---
-        # 저장은 기본 배점(보너스 미반영)으로 하고, 여기 입력한 %만큼 실효 배점을 올려서 보여준다.
-        bonus_row = ttk.Frame(self)
-        bonus_row.pack(fill="x", pady=(8, 0))
-        ttk.Label(bonus_row, text="배점 보너스:", font=("Segoe UI", 10, "bold")).pack(side="left")
-        self.bonus_var = tk.StringVar(value=store.event(self.base_key).get("bonus_pct", "0"))
-        vcmd = (self.register(is_number), "%P")
-        ttk.Entry(bonus_row, textvariable=self.bonus_var, width=6, justify="right",
-                  validate="key", validatecommand=vcmd).pack(side="left", padx=(4, 2))
-        ttk.Label(bonus_row, text="%  (전문가 보너스 등 추가 배점)").pack(side="left")
-        self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
-
-        # --- 날짜 탭 버튼 ---
+        # --- 날짜 탭 버튼 + 배점 보너스 % (같은 줄) ---
         tabs = ttk.Frame(self)
         tabs.pack(fill="x", pady=(8, 0))
         self.tab_btns = {}
@@ -53,6 +41,17 @@ class MultiDayEventCalc(ttk.Frame):
                              command=lambda d=day: self.show_day(d))
             btn.pack(side="left", padx=(0, 4))
             self.tab_btns[label] = btn
+
+        # 배점 보너스 %: 페이지 공통(모든 날짜에 동일 적용). 탭 줄 오른쪽에 배치.
+        # 저장은 기본 배점(보너스 미반영), 여기 입력한 %만큼 실효 배점을 올려서 보여준다.
+        # 오른쪽 정렬이라 역순(%, 입력칸, 라벨)으로 pack해서 화면엔 "전문가의 도움 [ ] %"로 보이게 함.
+        self.bonus_var = tk.StringVar(value=store.event(self.base_key).get("bonus_pct", "0"))
+        vcmd = (self.register(is_number), "%P")
+        ttk.Label(tabs, text="%").pack(side="right", padx=(2, 0))
+        ttk.Entry(tabs, textvariable=self.bonus_var, width=5, justify="right",
+                  validate="key", validatecommand=vcmd).pack(side="right", padx=(4, 0))
+        ttk.Label(tabs, text="전문가의 도움", font=("Segoe UI", 10, "bold")).pack(side="right", padx=(12, 0))
+        self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
 
         ttk.Separator(self).pack(fill="x", pady=8)
 
