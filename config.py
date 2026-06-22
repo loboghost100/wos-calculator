@@ -286,7 +286,11 @@ EVENT_GROUPS = [
             ], icon="icon_alliance_operation.png", scale=1.5, editable=True),
             _multiday_event("빙원의 왕", _custom_days(["I", "II", "III", "IV", "V", "VI", "VII"]),
                             icon="icon_frostfire_king.png", editable=True),
-            _placeholder("연맹 총동원", icon="icon_alliance_mobilization.png"),
+            {
+                "name": "연맹 총동원",
+                "icon": "icon_alliance_mobilization.png",
+                "training": True,  # 훈련 계획 계산기 (전투력 목표)
+            },
             {
                 "name": "Custom",
                 "icon": "icon_news.png",

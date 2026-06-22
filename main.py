@@ -19,6 +19,7 @@ from sidebar import Sidebar
 from event_calc import EventCalc
 from editable_calc import EditableCalc
 from multiday_calc import MultiDayEventCalc
+from training_calc import TrainingCalc
 from time_page import TimePage
 
 
@@ -62,6 +63,8 @@ class App(tk.Tk):
                     self.calcs[key] = TimePage(self.right, self.store)
                 else:
                     self.calcs[key] = self._make_placeholder_page(payload["name"])
+            elif payload.get("training"):
+                self.calcs[key] = TrainingCalc(self.right, payload, self.store)
             elif "days" in payload:
                 self.calcs[key] = MultiDayEventCalc(self.right, payload, self.store)
             elif payload.get("custom") or payload.get("editable"):
