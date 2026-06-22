@@ -62,7 +62,7 @@ class App(tk.Tk):
                     self.calcs[key] = TimePage(self.right, self.store)
                 else:
                     self.calcs[key] = self._make_placeholder_page(payload["name"])
-            elif payload.get("days"):
+            elif "days" in payload:
                 self.calcs[key] = MultiDayEventCalc(self.right, payload, self.store)
             elif payload.get("custom") or payload.get("editable"):
                 self.calcs[key] = EditableCalc(self.right, payload, self.store)

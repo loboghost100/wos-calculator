@@ -291,8 +291,9 @@ EVENT_GROUPS = [
                 "name": "Custom",
                 "icon": "icon_news.png",
                 "rewards": [],
-                "items": [],
-                "custom": True,  # 유저가 항목/배점을 직접 추가
+                "days": [],          # 동적: 유저가 탭 개수를 지정
+                "editable": True,
+                "dynamic": True,
             },
         ],
     },

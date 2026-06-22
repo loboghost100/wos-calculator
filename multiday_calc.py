@@ -1,8 +1,13 @@
 """여러 날(예: 연맹 대작전 6일)을 한 페이지에서 다루는 계산기.
 
 상단에 타이틀+보상 아이콘을 한 번 그리고, 그 아래 날짜 탭 버튼을 둔다.
-탭을 누르면 해당 날짜의 본문(EventCalc, 헤더 없는 형태)이 표시된다.
-각 날짜는 독립된 현재/목표 점수·배점을 가지며, "<이벤트키>::<날짜라벨>" 키로 저장된다.
+탭을 누르면 해당 날짜의 본문(헤더 없는 형태)이 표시된다.
+각 날짜는 독립된 현재/목표 점수·항목을 가지며, "<이벤트키>::<날짜라벨>" 키로 저장된다.
+
+event 옵션:
+- bonus=True   : '전문가의 도움'(배점 보너스 %) 입력칸 (연맹 대작전)
+- editable=True: 각 날짜를 보기/편집 토글로 유저가 직접 관리
+- dynamic=True : 탭 개수를 유저가 숫자로 지정 (1,2,3,… 라벨), 개수는 저장됨
 """
 import tkinter as tk
 from tkinter import ttk
@@ -18,6 +23,9 @@ class MultiDayEventCalc(ttk.Frame):
         self.event = event
         self.store = store
         self.base_key = event["_key"]
+        self.dynamic = event.get("dynamic", False)
+        self.bodies = {}
+        self.active_label = None
 
         # --- 타이틀 + 보상 아이콘 (페이지에 한 번만) ---
         header = ttk.Frame(self)
@@ -32,21 +40,14 @@ class MultiDayEventCalc(ttk.Frame):
             self._reward_imgs.append(img)
             ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
 
-        # --- 날짜 탭 버튼 + 배점 보너스 % (같은 줄) ---
+        # --- 탭 줄: (왼쪽) 탭 버튼들  (오른쪽) 보너스% 또는 탭 개수 입력 ---
         tabs = ttk.Frame(self)
         tabs.pack(fill="x", pady=(8, 0))
+        self.tab_bar = ttk.Frame(tabs)
+        self.tab_bar.pack(side="left")
         self.tab_btns = {}
-        for day in event["days"]:
-            label = day["label"]
-            btn = ttk.Button(tabs, text=label, width=6,
-                             command=lambda d=day: self.show_day(d))
-            btn.pack(side="left", padx=(0, 4))
-            self.tab_btns[label] = btn
 
         # 배점 보너스 %: bonus 플래그가 있는 이벤트(연맹 대작전)에만 표시.
-        # 페이지 공통(모든 날짜에 동일 적용), 탭 줄 오른쪽에 배치.
-        # 저장은 기본 배점(보너스 미반영), 여기 입력한 %만큼 실효 배점을 올려서 보여준다.
-        # 오른쪽 정렬이라 역순(%, 입력칸, 라벨)으로 pack해서 화면엔 "전문가의 도움 [ ] %"로 보이게 함.
         self.bonus_getter = None
         if event.get("bonus"):
             self.bonus_var = tk.StringVar(value=store.event(self.base_key).get("bonus_pct", "0"))
@@ -58,15 +59,70 @@ class MultiDayEventCalc(ttk.Frame):
             self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
             self.bonus_getter = self._mult
 
+        # 탭 개수 입력: dynamic 이벤트(연맹 Custom)에만 표시.
+        if self.dynamic:
+            self.count_var = tk.StringVar(value=str(self._saved_count()))
+            vcmd2 = (self.register(is_number), "%P")
+            ttk.Spinbox(tabs, from_=1, to=60, width=4, textvariable=self.count_var,
+                        validate="key", validatecommand=vcmd2).pack(side="right", padx=(4, 0))
+            ttk.Label(tabs, text="탭 개수", font=("Segoe UI", 10, "bold")).pack(side="right", padx=(12, 0))
+            self.count_var.trace_add("write", lambda *a: self._on_count_change())
+
         ttk.Separator(self).pack(fill="x", pady=8)
 
         # --- 날짜 본문 영역 (lazy 생성, 상태 유지) ---
         self.body_area = ttk.Frame(self)
         self.body_area.pack(fill="both", expand=True)
-        self.bodies = {}
-        self.active_label = None
 
-        self.show_day(event["days"][0])
+        self.days = self._make_days()
+        self._rebuild_tabs()
+
+    # --- 탭/날짜 구성 ---
+    def _saved_count(self):
+        try:
+            return max(1, int(self.store.event(self.base_key).get("day_count", 1)))
+        except (ValueError, TypeError):
+            return 1
+
+    def _make_days(self):
+        if self.dynamic:
+            n = self._saved_count()
+            return [{"label": str(i), "items": []} for i in range(1, n + 1)]
+        return self.event["days"]
+
+    def _rebuild_tabs(self):
+        for b in self.tab_bar.winfo_children():
+            b.destroy()
+        self.tab_btns = {}
+        for day in self.days:
+            label = day["label"]
+            btn = ttk.Button(self.tab_bar, text=label, width=6,
+                             command=lambda d=day: self.show_day(d))
+            btn.pack(side="left", padx=(0, 4))
+            self.tab_btns[label] = btn
+
+        # 보던 탭 유지, 없으면 첫 탭
+        target = None
+        if self.active_label in self.tab_btns:
+            target = next(d for d in self.days if d["label"] == self.active_label)
+        elif self.days:
+            target = self.days[0]
+        if target:
+            self.show_day(target)
+
+    def _on_count_change(self):
+        raw = self.count_var.get()
+        if not raw:          # 편집 중(빈칸)이면 무시
+            return
+        try:
+            n = max(1, int(raw))
+        except ValueError:
+            return
+        rec = self.store.event(self.base_key)
+        rec["day_count"] = str(n)
+        self.store.schedule_save()
+        self.days = [{"label": str(i), "items": []} for i in range(1, n + 1)]
+        self._rebuild_tabs()
 
     def show_day(self, day):
         label = day["label"]
@@ -81,7 +137,6 @@ class MultiDayEventCalc(ttk.Frame):
                 "_key": f"{self.base_key}::{label}",
             }
             if self.event.get("editable"):
-                # 보기/편집 토글로 유저가 직접 항목·배점 관리하는 날짜
                 self.bodies[label] = EditableCalc(
                     self.body_area, pseudo, self.store, show_header=False)
             else:
@@ -90,17 +145,16 @@ class MultiDayEventCalc(ttk.Frame):
                     bonus_getter=self.bonus_getter, points_editable=False)
         self.bodies[label].pack(fill="both", expand=True)
 
-        # 선택된 탭 강조
         for lbl, btn in self.tab_btns.items():
             btn.state(["pressed"] if lbl == label else ["!pressed"])
         self.active_label = label
 
+    # --- 보너스 ---
     def _mult(self):
         """현재 배점 배율. 예: 50% -> 1.5 (빈칸/0% -> 1.0)."""
         return 1 + to_num(self.bonus_var.get()) / 100
 
     def _on_bonus_change(self):
-        # % 저장 (이벤트 단위 공통) + 생성된 모든 날짜 본문 재계산
         rec = self.store.event(self.base_key)
         rec["bonus_pct"] = self.bonus_var.get()
         self.store.schedule_save()
