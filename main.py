@@ -18,6 +18,7 @@ from store import Store
 from sidebar import Sidebar
 from event_calc import EventCalc
 from custom_calc import CustomEventCalc
+from editable_calc import EditableCalc
 from multiday_calc import MultiDayEventCalc
 from time_page import TimePage
 
@@ -66,6 +67,8 @@ class App(tk.Tk):
                 self.calcs[key] = MultiDayEventCalc(self.right, payload, self.store)
             elif payload.get("custom"):
                 self.calcs[key] = CustomEventCalc(self.right, payload, self.store)
+            elif payload.get("editable"):
+                self.calcs[key] = EditableCalc(self.right, payload, self.store)
             else:
                 self.calcs[key] = EventCalc(self.right, payload, self.store)
         self.calcs[key].pack(fill="both", expand=True)

@@ -54,12 +54,13 @@ class Item:
 
 
 def _placeholder(name, icon=None):
-    """아직 내용 미정인 자리표시용 이벤트."""
+    """아직 내용 미정인 자리표시용 이벤트 (편집 비활성 = 읽기전용)."""
     return {
         "name": name,
         "icon": icon,
         "rewards": [],
         "items": [{"name": Item.ACTION_TBD, "points": 0}],
+        "editable": False,
     }
 
 
@@ -109,6 +110,7 @@ def _event(name, items, icon=None, rewards=None, defaults=None):
         "rewards": rewards or [],
         "items": [{"name": n, "points": p} for n, p in items],
         "defaults": defaults or {},
+        "editable": True,   # 보기/편집 토글 (기본값은 두고 유저가 수정 가능)
     }
 
 
@@ -281,8 +283,9 @@ EVENT_GROUPS = [
                     (Item.SPEEDUP, 18),
                     (Item.DIAMOND, 1),
                 ]),
-            ], icon="icon_alliance_operation.png", scale=1.5),
-            _multiday_event("빙원의 왕", _tbd_days(["I", "II", "III", "IV", "V", "VI", "VII"]), icon="icon_frostfire_king.png"),
+            ], icon="icon_alliance_operation.png", scale=1.5, editable=True),
+            _multiday_event("빙원의 왕", _custom_days(["I", "II", "III", "IV", "V", "VI", "VII"]),
+                            icon="icon_frostfire_king.png", editable=True),
             _placeholder("연맹 총동원", icon="icon_alliance_mobilization.png"),
             {
                 "name": "Custom",

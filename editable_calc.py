@@ -7,7 +7,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-from resources import (is_number, comma_format, comma_normalize, to_num,
+from resources import (resource, is_number, comma_format, comma_normalize, to_num,
                        gap_text, need_text)
 from config import item_col_minsize
 
@@ -26,17 +26,31 @@ class EditableCalc(ttk.Frame):
         self.store = store
         self.key = event["_key"]
         saved = store.event(self.key)
-        self.items = [dict(it) for it in saved.get("custom_items", [])]  # [{name, points}]
+        # 저장된 편집 내역이 있으면 그걸, 없으면 config 기본 항목을 초기값으로
+        saved_items = saved.get("custom_items")
+        if saved_items is not None:
+            self.items = [dict(it) for it in saved_items]
+        else:
+            self.items = [{"name": it["name"], "points": str(it["points"])}
+                          for it in event.get("items", [])]
         self.editing = False
         self._vcmd = (self.register(is_number), "%P")
         self.need_labels = []
         self.name_vars = []
         self.point_vars = []
+        self._reward_imgs = []  # GC 방지용 참조 보관
 
         if show_header:
             header = ttk.Frame(self)
             header.pack(fill="x", anchor="w")
             ttk.Label(header, text=event["name"], font=("Segoe UI", 14, "bold")).pack(side="left")
+            for j, icon in enumerate(event.get("rewards", [])):
+                try:
+                    img = tk.PhotoImage(file=resource("assets", icon))
+                except Exception:
+                    continue
+                self._reward_imgs.append(img)
+                ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
             ttk.Separator(self).pack(fill="x", pady=6)
 
         # --- 목표 / 현재 점수 ---
@@ -143,25 +157,25 @@ class EditableCalc(ttk.Frame):
         if not name:
             return
         self.items.append({"name": name, "points": self.add_points.get().strip() or "0"})
-        self._save()
+        self._save_items()
         self._render()
         self.add_name.focus_set()  # 연속 입력: 추가 후 이름칸으로 포커스 복귀
 
     def _delete(self, idx):
         if 0 <= idx < len(self.items):
             del self.items[idx]
-            self._save()
+            self._save_items()
             self._render()
 
     def _on_name(self, idx, var):
         if 0 <= idx < len(self.items):
             self.items[idx]["name"] = var.get()
-            self._save()
+            self._save_items()
 
     def _on_points(self, idx, var):
         if 0 <= idx < len(self.items):
             self.items[idx]["points"] = var.get()
-            self._save()
+            self._save_items()
 
     def recalc(self):
         current = to_num(self.current_var.get())
@@ -171,11 +185,17 @@ class EditableCalc(ttk.Frame):
         if not self.editing:
             for it, lbl in zip(self.items, self.need_labels):
                 lbl.config(text=need_text(gap, target, to_num(it.get("points", "0"))))
-        self._save()
+        self._save_scores()
 
-    def _save(self):
+    def _save_scores(self):
+        # 현재/목표 점수만 저장 (항목은 편집 전까지 건드리지 않아 기본값 유지)
         rec = self.store.event(self.key)
         rec["current"] = self.current_var.get()
         rec["target"] = self.target_var.get()
+        self.store.schedule_save()
+
+    def _save_items(self):
+        # 유저가 항목을 편집했을 때만 custom_items 저장 (기본값 위에 덮어씀)
+        rec = self.store.event(self.key)
         rec["custom_items"] = self.items
         self.store.schedule_save()
