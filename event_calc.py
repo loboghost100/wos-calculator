@@ -61,23 +61,24 @@ class EventCalc(ttk.Frame):
 
             ttk.Separator(self).pack(fill="x", pady=6)
 
-        # --- 현재 / 목표 점수 ---
+        # --- 목표 / 현재 점수 (현재 점수 옆 '적용' 버튼으로도 계산. 타이핑 자동 계산은 유지) ---
         score_row = ttk.Frame(self)
         score_row.pack(fill="x", pady=(0, 4))
-        ttk.Label(score_row, text="현재 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
-        self.current_var = tk.StringVar(value=saved.get("current") or defaults.get("current", ""))
-        self.current_var.trace_add("write", lambda *a, v=self.current_var: comma_format(v) or self.recalc())
-        comma_format(self.current_var)
-        _ce = ttk.Entry(score_row, textvariable=self.current_var, width=12, justify="right")
-        _ce.pack(side="left", padx=(4, 16))
-        _ce.bind("<FocusOut>", lambda e: self.recalc())
         ttk.Label(score_row, text="목표 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
         self.target_var = tk.StringVar(value=saved.get("target") or defaults.get("target", ""))
         self.target_var.trace_add("write", lambda *a, v=self.target_var: comma_format(v) or self.recalc())
         comma_format(self.target_var)
         _te = ttk.Entry(score_row, textvariable=self.target_var, width=12, justify="right")
-        _te.pack(side="left", padx=4)
+        _te.pack(side="left", padx=(4, 16))
         _te.bind("<FocusOut>", lambda e: self.recalc())
+        ttk.Label(score_row, text="현재 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        self.current_var = tk.StringVar(value=saved.get("current") or defaults.get("current", ""))
+        self.current_var.trace_add("write", lambda *a, v=self.current_var: comma_format(v) or self.recalc())
+        comma_format(self.current_var)
+        _ce = ttk.Entry(score_row, textvariable=self.current_var, width=12, justify="right")
+        _ce.pack(side="left", padx=4)
+        _ce.bind("<FocusOut>", lambda e: self.recalc())
+        ttk.Button(score_row, text="적용", command=self.recalc).pack(side="left", padx=(8, 0))
 
         # 필요 점수 표시
         self.gap_label = ttk.Label(self, text="", font=("Segoe UI", 11, "bold"), foreground="#1a5fb4")
