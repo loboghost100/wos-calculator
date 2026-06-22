@@ -7,7 +7,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-from resources import resource
+from resources import resource, is_number, to_num
 from event_calc import EventCalc
 
 
@@ -30,6 +30,18 @@ class MultiDayEventCalc(ttk.Frame):
                 continue
             self._reward_imgs.append(img)
             ttk.Label(header, image=img).pack(side="left", padx=(12 if j == 0 else 4, 0))
+
+        # --- 배점 보너스 % (페이지 공통: 모든 날짜에 동일 적용) ---
+        # 저장은 기본 배점(보너스 미반영)으로 하고, 여기 입력한 %만큼 실효 배점을 올려서 보여준다.
+        bonus_row = ttk.Frame(self)
+        bonus_row.pack(fill="x", pady=(8, 0))
+        ttk.Label(bonus_row, text="배점 보너스:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        self.bonus_var = tk.StringVar(value=store.event(self.base_key).get("bonus_pct", "0"))
+        vcmd = (self.register(is_number), "%P")
+        ttk.Entry(bonus_row, textvariable=self.bonus_var, width=6, justify="right",
+                  validate="key", validatecommand=vcmd).pack(side="left", padx=(4, 2))
+        ttk.Label(bonus_row, text="%  (전문가 보너스 등 추가 배점)").pack(side="left")
+        self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
 
         # --- 날짜 탭 버튼 ---
         tabs = ttk.Frame(self)
@@ -64,10 +76,24 @@ class MultiDayEventCalc(ttk.Frame):
                 "defaults": day.get("defaults", {}),
                 "_key": f"{self.base_key}::{label}",
             }
-            self.bodies[label] = EventCalc(self.body_area, pseudo, self.store, show_header=False)
+            self.bodies[label] = EventCalc(
+                self.body_area, pseudo, self.store, show_header=False,
+                bonus_getter=self._mult, points_editable=False)
         self.bodies[label].pack(fill="both", expand=True)
 
         # 선택된 탭 강조
         for lbl, btn in self.tab_btns.items():
             btn.state(["pressed"] if lbl == label else ["!pressed"])
         self.active_label = label
+
+    def _mult(self):
+        """현재 배점 배율. 예: 50% -> 1.5 (빈칸/0% -> 1.0)."""
+        return 1 + to_num(self.bonus_var.get()) / 100
+
+    def _on_bonus_change(self):
+        # % 저장 (이벤트 단위 공통) + 생성된 모든 날짜 본문 재계산
+        rec = self.store.event(self.base_key)
+        rec["bonus_pct"] = self.bonus_var.get()
+        self.store.schedule_save()
+        for body in self.bodies.values():
+            body.recalc()

@@ -7,6 +7,13 @@ from resources import resource, is_number, comma_format, to_num
 from config import item_col_minsize
 
 
+def _fmt_points(v):
+    """배점 표시: 정수면 정수로, 소수가 있으면 1자리까지 (천단위 콤마)."""
+    if abs(v - round(v)) < 1e-9:
+        return f"{int(round(v)):,}"
+    return f"{v:,.1f}"
+
+
 class EventCalc(ttk.Frame):
     """이벤트 점수 계산기.
 
@@ -15,7 +22,8 @@ class EventCalc(ttk.Frame):
     (예: 목표-현재=2000, 불의 수정 100점 -> 20개)
     """
 
-    def __init__(self, master, event, store, show_header=True):
+    def __init__(self, master, event, store, show_header=True,
+                 bonus_getter=None, points_editable=True):
         super().__init__(master, padding=14 if show_header else 0)
         self.event = event
         self.store = store
@@ -24,7 +32,15 @@ class EventCalc(ttk.Frame):
         saved_points = saved.get("points", {})
         defaults = event.get("defaults", {})
 
-        self.point_vars = []
+        # bonus_getter: 호출하면 배점 배율(1.5 등)을 돌려주는 함수 (None이면 보너스 없음)
+        # points_editable: 배점을 유저가 직접 수정(True) / 기본 배점 고정·실효 배점 표시(False)
+        self.bonus_getter = bonus_getter
+        self.points_editable = points_editable
+
+        self.item_names = [it["name"] for it in event["items"]]
+        self.base_points = []     # 항목별 기본 배점(보너스 미반영)
+        self.point_vars = []      # 편집 가능 모드: StringVar, 아니면 None
+        self.point_labels = []    # 읽기전용 모드: 실효 배점 Label, 아니면 None
         self.need_labels = []
         self._vcmd = (self.register(is_number), "%P")  # 숫자만 입력 허용
 
@@ -83,12 +99,21 @@ class EventCalc(ttk.Frame):
 
         for i, item in enumerate(event["items"], start=1):
             ttk.Label(rows, text=item["name"]).grid(row=i, column=0, sticky="w", padx=3, pady=2)
+            self.base_points.append(float(item["points"]))
 
-            pvar = tk.StringVar(value=saved_points.get(item["name"], str(item["points"])))
-            pvar.trace_add("write", lambda *a: self.recalc())
-            ttk.Entry(rows, textvariable=pvar, width=8, justify="right",
-                      validate="key", validatecommand=self._vcmd).grid(row=i, column=1, sticky="e", padx=3, pady=2)
-            self.point_vars.append(pvar)
+            if points_editable:
+                pvar = tk.StringVar(value=saved_points.get(item["name"], str(item["points"])))
+                pvar.trace_add("write", lambda *a: self.recalc())
+                ttk.Entry(rows, textvariable=pvar, width=8, justify="right",
+                          validate="key", validatecommand=self._vcmd).grid(row=i, column=1, sticky="e", padx=3, pady=2)
+                self.point_vars.append(pvar)
+                self.point_labels.append(None)
+            else:
+                # 배점 고정: 실효 배점(기본×배율)을 라벨로만 표시
+                plabel = ttk.Label(rows, text="-", anchor="e", font=("Segoe UI", 10))
+                plabel.grid(row=i, column=1, sticky="e", padx=3, pady=2)
+                self.point_vars.append(None)
+                self.point_labels.append(plabel)
 
             need = ttk.Label(rows, text="-", anchor="e", font=("Segoe UI", 10))
             need.grid(row=i, column=2, sticky="e", padx=3, pady=2)
@@ -108,19 +133,26 @@ class EventCalc(ttk.Frame):
         else:
             self.gap_label.config(text=f"필요 점수 (목표 - 현재): {int(gap):,} 점")
 
-        for pvar, lbl in zip(self.point_vars, self.need_labels):
-            pts = to_num(pvar.get())
+        mult = self.bonus_getter() if self.bonus_getter else 1.0
+        for i, (need_lbl, plabel) in enumerate(zip(self.need_labels, self.point_labels)):
+            # 기본 배점: 편집 모드면 입력값, 고정 모드면 config 값
+            base = to_num(self.point_vars[i].get()) if self.point_vars[i] is not None \
+                else self.base_points[i]
+            eff = base * mult                      # 실효 배점 = 기본 × 배율
+            if plabel is not None:
+                plabel.config(text=_fmt_points(eff))
             if target <= 0 or gap <= 0:
-                lbl.config(text="0개" if gap <= 0 and target > 0 else "-")
-            elif pts <= 0:
-                lbl.config(text="—")
+                need_lbl.config(text="0개" if gap <= 0 and target > 0 else "-")
+            elif eff <= 0:
+                need_lbl.config(text="—")
             else:
-                lbl.config(text=f"{math.ceil(gap / pts):,}개")
+                need_lbl.config(text=f"{math.ceil(gap / eff):,}개")
 
-        # 저장 (현재/목표/배점)
+        # 저장 (현재/목표 + 편집 가능한 경우에만 기본 배점)
         rec = self.store.event(self.key)
         rec["current"] = self.current_var.get()
         rec["target"] = self.target_var.get()
-        rec["points"] = {item["name"]: p.get()
-                         for item, p in zip(self.event["items"], self.point_vars)}
+        if self.points_editable:
+            rec["points"] = {name: p.get()
+                             for name, p in zip(self.item_names, self.point_vars)}
         self.store.schedule_save()
