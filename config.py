@@ -72,12 +72,17 @@ def _day(label, items, defaults=None):
     }
 
 
-def _multiday_event(name, days, icon=None, rewards=None, bonus=False, editable=False):
+def _multiday_event(name, days, icon=None, rewards=None, bonus=False, editable=False, scale=1.0):
     """날짜별로 항목이 다른 이벤트(예: 연맹 대작전 6일). days = [_day(...), ...].
 
     bonus:    True면 페이지에 '전문가의 도움'(배점 보너스 %) 입력칸을 둔다.
     editable: True면 각 날짜를 보기/편집 토글로 유저가 항목·배점을 직접 관리한다.
+    scale:    모든 날짜 항목 배점에 곱할 배율 (예: 1.5 = 기본 배점 +50% 적용).
     """
+    if scale != 1.0:
+        for d in days:
+            for it in d["items"]:
+                it["points"] = it["points"] * scale
     return {
         "name": name,
         "icon": icon,
@@ -276,7 +281,7 @@ EVENT_GROUPS = [
                     (Item.SPEEDUP, 18),
                     (Item.DIAMOND, 1),
                 ]),
-            ], icon="icon_alliance_operation.png", bonus=True),
+            ], icon="icon_alliance_operation.png", scale=1.5),
             _multiday_event("빙원의 왕", _tbd_days(["I", "II", "III", "IV", "V", "VI", "VII"]), icon="icon_frostfire_king.png"),
             _placeholder("연맹 총동원", icon="icon_alliance_mobilization.png"),
             {
