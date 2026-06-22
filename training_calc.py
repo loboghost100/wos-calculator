@@ -8,6 +8,7 @@
   필요시간 T = 목표 / Σ효율ᵢ
   마릿수ᵢ = T / 시간ᵢ,  전투력ᵢ = 마릿수ᵢ × 전투력ᵢ
 """
+import math
 import tkinter as tk
 from tkinter import ttk
 
@@ -104,13 +105,13 @@ class TrainingCalc(ttk.Frame):
             lines = [f"필요 시간: {_fmt_time(big_t)}", ""]
             total_power = 0.0
             for name, p, t, eff in rows:
-                units = int(round(big_t / t)) if t > 0 else 0
-                actual_t = units * t          # 정수 마릿수 기준 실제 훈련 시간
+                units = math.ceil(big_t / t) if t > 0 else 0   # 올림: 목표 미달 방지
+                actual_t = units * t          # 정수 명수 기준 실제 훈련 시간
                 power = units * p
                 total_power += power
                 lines.append(f"  {name}: {units:,}명 · {_fmt_time(actual_t)}  →  {int(round(power)):,} 전투력")
             lines.append("")
-            lines.append(f"합계: 약 {int(round(total_power)):,} 전투력")
+            lines.append(f"합계: {int(round(total_power)):,} 전투력 (목표 달성 ✅)")
             self.result.config(text="\n".join(lines))
         else:
             self.result.config(text="목표 전투력과 병종별 전투력·훈련시간을 입력하세요.")
