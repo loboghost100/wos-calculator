@@ -63,9 +63,9 @@ class TrainingCalc(ttk.Frame):
         grid = ttk.Frame(self)
         grid.pack(fill="x", pady=(4, 0))
         bold = ("Segoe UI", 10, "bold")
-        ttk.Label(grid, text="병종", width=8, font=bold).grid(row=0, column=0, sticky="w", padx=3, pady=(0, 2))
-        ttk.Label(grid, text="전투력", width=8, font=bold).grid(row=0, column=1, padx=3, pady=(0, 2))
-        ttk.Label(grid, text="훈련시간(초)", width=10, font=bold).grid(row=0, column=2, padx=3, pady=(0, 2))
+        ttk.Label(grid, text="병종", font=bold).grid(row=0, column=0, sticky="w", padx=3, pady=(0, 2))
+        ttk.Label(grid, text="전투력", font=bold).grid(row=0, column=1, padx=3, pady=(0, 2))
+        ttk.Label(grid, text="훈련시간(초)", font=bold).grid(row=0, column=2, padx=3, pady=(0, 2))
 
         self.troop_vars = []  # [(name, power_var, time_var)]
         for i, (name, key, dp, dt) in enumerate(TROOPS, start=1):
@@ -104,10 +104,11 @@ class TrainingCalc(ttk.Frame):
             lines = [f"필요 시간: {_fmt_time(big_t)}", ""]
             total_power = 0.0
             for name, p, t, eff in rows:
-                units = big_t / t if t > 0 else 0
+                units = int(round(big_t / t)) if t > 0 else 0
+                actual_t = units * t          # 정수 마릿수 기준 실제 훈련 시간
                 power = units * p
                 total_power += power
-                lines.append(f"  {name}: {int(round(units)):,}마리  →  {int(round(power)):,} 전투력")
+                lines.append(f"  {name}: {units:,}명 · {_fmt_time(actual_t)}  →  {int(round(power)):,} 전투력")
             lines.append("")
             lines.append(f"합계: 약 {int(round(total_power)):,} 전투력")
             self.result.config(text="\n".join(lines))
