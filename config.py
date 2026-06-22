@@ -9,9 +9,48 @@
   event.custom : True면 유저가 항목/배점을 직접 추가하는 커스텀 이벤트
 
 새 이벤트 추가 = 아래 EVENT_GROUPS 데이터에 항목 추가하면 끝.
+항목명은 Item 네임스페이스(아래)로 관리 — 오타/이름변경은 거기 한 곳만 고치면
+개인/연맹 전 이벤트에 동일하게 반영된다.
 """
 APP_TITLE = "WOS 이벤트 계산기"
 BASE_TIME = 9 * 60  # AM 9:00 = 540분 (시간 페이지 기본값, 코드 고정)
+
+
+class Item:
+    """항목명 단일 출처(SSOT).
+
+    같은 항목이 개인/연맹 여러 이벤트에 반복 등장하므로, 표기를 여기서만 정의해
+    중복·불일치(예: '다이아1개 소모' vs '다이아 1개 소모')를 원천 차단한다.
+    값(문자열)을 바꾸면 전 이벤트에 반영된다.
+    """
+    ESCORT          = "행상 호송"
+    RAID            = "행상 약탈"
+    REFINED_FC      = "제련된 불의 수정"
+    FIRE_CRYSTAL    = "불의 수정"
+    FC_FRAGMENT     = "불의 수정 조각"
+    SPEEDUP         = "가속 사용"
+    DIAMOND         = "다이아1개 소모"
+    EXPERT_MARK     = "전문가 표식"
+    SKILL_BOOK      = "학문의 책"
+    LORD_GEAR       = "영주 장비"
+    LORD_GEM        = "영주 보석"
+    HERO_RARE       = "레어 영웅 파편"
+    HERO_EPIC       = "에픽 영웅 파편"
+    HERO_LEGEND     = "레전드 영웅 파편"
+    MASTERY_STONE   = "마스터리석"
+    MITHRIL         = "미스릴"
+    EXCLUSIVE_GEAR  = "전용 장비"
+    TROOP_TRAIN_10  = "10급 병사 훈련"
+    TROOP_TRAIN_11  = "11급 병사 훈련"
+    PET_BREAK       = "펫 돌파"
+    WILD_MARK_HIGH  = "고급 야성의 표식"
+    WILD_MARK_NORMAL = "일반 야성의 표식"
+    GATHER_MEAT     = "생고기 2000개 채집"
+    GATHER_WOOD     = "목재 2000개 채집"
+    GATHER_COAL     = "석탄 400개 채집"
+    GATHER_IRON     = "철광 100개 채집"
+    TBD             = "(항목 미정)"       # 항목 미정 자리표시
+    ACTION_TBD      = "(행동 미정)"       # 이벤트 자체 미정 자리표시
 
 
 def _placeholder(name, icon=None):
@@ -20,7 +59,7 @@ def _placeholder(name, icon=None):
         "name": name,
         "icon": icon,
         "rewards": [],
-        "items": [{"name": "(행동 미정)", "points": 0}],
+        "items": [{"name": Item.ACTION_TBD, "points": 0}],
     }
 
 
@@ -57,6 +96,11 @@ def _event(name, items, icon=None, rewards=None, defaults=None):
     }
 
 
+def _tbd_days(labels):
+    """라벨 목록 -> 항목 미정 멀티데이 일자 목록."""
+    return [_day(lbl, [(Item.TBD, 0)]) for lbl in labels]
+
+
 EVENT_GROUPS = [
     {
         "name": "시간",
@@ -66,16 +110,16 @@ EVENT_GROUPS = [
         "name": "개인 이벤트",
         "events": [
             _event("군비 경쟁1", [
-                ("불의 수정", 100),
-                ("불의 수정 조각", 50),
-                ("제련된 불의 수정", 1500),
-                ("영주 장비", 3),
-                ("레어 영웅 파편", 15),
-                ("에픽 영웅 파편", 50),
-                ("레전드 영웅 파편", 125),
-                ("가속 사용", 1),
-                ("전문가 표식", 200),
-                ("학문의 책", 2),
+                (Item.FIRE_CRYSTAL, 100),
+                (Item.FC_FRAGMENT, 50),
+                (Item.REFINED_FC, 1500),
+                (Item.LORD_GEAR, 3),
+                (Item.HERO_RARE, 15),
+                (Item.HERO_EPIC, 50),
+                (Item.HERO_LEGEND, 125),
+                (Item.SPEEDUP, 1),
+                (Item.EXPERT_MARK, 200),
+                (Item.SKILL_BOOK, 2),
             ], icon="icon_arms.png", rewards=[
                 "icon_diamond.png",
                 "icon_legend_charm_part.png",
@@ -83,14 +127,14 @@ EVENT_GROUPS = [
                 "icon_legend_skillbook.png",
             ], defaults={"current": "0", "target": "20000"}),
             _event("군비 경쟁2", [
-                ("불의 수정", 100),
-                ("불의 수정 조각", 50),
-                ("제련된 불의 수정", 0),
-                ("영주 장비", 3),
-                ("마스터리석", 30),
-                ("미스릴", 10),
-                ("전용 장비", 5),
-                ("건설·연구·훈련 가속", 1),
+                (Item.FIRE_CRYSTAL, 100),
+                (Item.FC_FRAGMENT, 50),
+                (Item.REFINED_FC, 1500),
+                (Item.LORD_GEAR, 3),
+                (Item.MASTERY_STONE, 30),
+                (Item.MITHRIL, 10),
+                (Item.EXCLUSIVE_GEAR, 5),
+                (Item.SPEEDUP, 1),
             ], icon="icon_arms.png", rewards=[
                 "icon_diamond.png",
                 "icon_legend_charm_part.png",
@@ -98,10 +142,11 @@ EVENT_GROUPS = [
                 "icon_legend_explore_skillbook.png",
             ]),
             _event("사관의 계획1", [
-                ("영주 보석", 50),
-                ("마스터리석", 30),
-                ("전용 장비", 5),
-                ("병사 훈련", 1),
+                (Item.LORD_GEM, 50),
+                (Item.MASTERY_STONE, 30),
+                (Item.EXCLUSIVE_GEAR, 5),
+                (Item.TROOP_TRAIN_10, 1),
+                (Item.TROOP_TRAIN_11, 1),
             ], icon="icon_saquan.png", rewards=[
                 "icon_diamond.png",
                 "icon_legend_charm_part.png",
@@ -109,13 +154,13 @@ EVENT_GROUPS = [
                 "icon_legend_skillbook.png",
             ]),
             _event("사관의 계획2", [
-                ("영주 장비", 3),
-                ("레어 영웅 파편", 15),
-                ("에픽 영웅 파편", 50),
-                ("레전드 영웅 파편", 125),
-                ("마스터리석", 30),
-                ("전용 장비", 5),
-                ("미스릴", 10),
+                (Item.LORD_GEAR, 3),
+                (Item.HERO_RARE, 15),
+                (Item.HERO_EPIC, 50),
+                (Item.HERO_LEGEND, 125),
+                (Item.MASTERY_STONE, 30),
+                (Item.EXCLUSIVE_GEAR, 5),
+                (Item.MITHRIL, 10),
             ], icon="icon_saquan.png", rewards=[
                 "icon_diamond.png",
                 "icon_legend_charm_part.png",
@@ -134,107 +179,93 @@ EVENT_GROUPS = [
     {
         "name": "연맹 이벤트",
         "events": [
-            _multiday_event("최강 왕국", [
-                _day("I", [("(항목 미정)", 0)]),
-                _day("II", [("(항목 미정)", 0)]),
-                _day("III", [("(항목 미정)", 0)]),
-                _day("IV", [("(항목 미정)", 0)]),
-                _day("V", [("(항목 미정)", 0)]),
-            ]),
+            _multiday_event("최강 왕국", _tbd_days(["I", "II", "III", "IV", "V"])),
             _multiday_event("연맹 대작전", [
                 _day("I", [
-                    ("행상 호송", 10000),
-                    ("행상 약탈", 10000),
-                    ("제련된 불의 수정", 18750),
-                    ("불의 수정", 1250),
-                    ("불의 수정 조각", 625),
-                    ("가속 사용", 18),
-                    ("생고기 2000개 채집", 2),
-                    ("목재 2000개 채집", 2),
-                    ("석탄 400개 채집", 2),
-                    ("철광 100개 채집", 2),
-                    ("다이아1개 소모", 1),
-                    ("전문가 표식", 3600),
-                    ("학문의 책", 36),
+                    (Item.ESCORT, 10000),
+                    (Item.RAID, 10000),
+                    (Item.REFINED_FC, 18750),
+                    (Item.FIRE_CRYSTAL, 1250),
+                    (Item.FC_FRAGMENT, 625),
+                    (Item.SPEEDUP, 18),
+                    (Item.GATHER_MEAT, 2),
+                    (Item.GATHER_WOOD, 2),
+                    (Item.GATHER_COAL, 2),
+                    (Item.GATHER_IRON, 2),
+                    (Item.DIAMOND, 1),
+                    (Item.EXPERT_MARK, 3600),
+                    (Item.SKILL_BOOK, 36),
                 ]),
                 _day("II", [
-                    ("행상 호송", 10000),
-                    ("행상 약탈", 10000),
-                    ("레어 영웅 파편", 210),
-                    ("에픽 영웅 파편", 750),
-                    ("레전드 영웅 파편", 1875),
-                    ("제련된 불의 수정", 18750),
-                    ("불의 수정", 1250),
-                    ("불의 수정 조각", 625),
-                    ("가속 사용", 18),
-                    ("다이아1개 소모", 1),
-                    ("전문가 표식", 3600),
-                    ("학문의 책", 36),
+                    (Item.ESCORT, 10000),
+                    (Item.RAID, 10000),
+                    (Item.HERO_RARE, 210),
+                    (Item.HERO_EPIC, 750),
+                    (Item.HERO_LEGEND, 1875),
+                    (Item.REFINED_FC, 18750),
+                    (Item.FIRE_CRYSTAL, 1250),
+                    (Item.FC_FRAGMENT, 625),
+                    (Item.SPEEDUP, 18),
+                    (Item.DIAMOND, 1),
+                    (Item.EXPERT_MARK, 3600),
+                    (Item.SKILL_BOOK, 36),
                 ]),
                 _day("III", [
-                    ("행상 호송", 10000),
-                    ("행상 약탈", 10000),
-                    ("영주 보석", 45),
-                    ("펫 돌파", 30),
-                    ("고급 야성의 표식", 9370),
-                    ("일반 야성의 표식", 680),
-                    ("생고기 2000개 채집", 2),
-                    ("목재 2000개 채집", 2),
-                    ("석탄 400개 채집", 2),
-                    ("철광 100개 채집", 2),
-                    ("다이아1개 소모", 1),
+                    (Item.ESCORT, 10000),
+                    (Item.RAID, 10000),
+                    (Item.LORD_GEM, 45),
+                    (Item.PET_BREAK, 30),
+                    (Item.WILD_MARK_HIGH, 9370),
+                    (Item.WILD_MARK_NORMAL, 680),
+                    (Item.GATHER_MEAT, 2),
+                    (Item.GATHER_WOOD, 2),
+                    (Item.GATHER_COAL, 2),
+                    (Item.GATHER_IRON, 2),
+                    (Item.DIAMOND, 1),
                 ]),
                 _day("IV", [
-                    ("행상 호송", 10000),
-                    ("행상 약탈", 10000),
-                    ("영주 보석", 45),
-                    ("마스터리석", 1875),
-                    ("전용 장비", 3750),
-                    ("미스릴", 67500),
-                    ("10급 병사 훈련", 24),
-                    ("11급 병사 훈련", 30),
-                    ("다이아1개 소모", 1),
+                    (Item.ESCORT, 10000),
+                    (Item.RAID, 10000),
+                    (Item.LORD_GEM, 45),
+                    (Item.MASTERY_STONE, 1875),
+                    (Item.EXCLUSIVE_GEAR, 3750),
+                    (Item.MITHRIL, 67500),
+                    (Item.TROOP_TRAIN_10, 24),
+                    (Item.TROOP_TRAIN_11, 30),
+                    (Item.DIAMOND, 1),
                 ]),
                 _day("V", [
-                    ("행상 호송", 10000),
-                    ("행상 약탈", 10000),
-                    ("영주 장비", 22),
-                    ("제련된 불의 수정", 18750),
-                    ("불의 수정", 1250),
-                    ("불의 수정 조각", 625),
-                    ("가속 사용", 18),
-                    ("다이아1개 소모", 1),
+                    (Item.ESCORT, 10000),
+                    (Item.RAID, 10000),
+                    (Item.LORD_GEAR, 22),
+                    (Item.REFINED_FC, 18750),
+                    (Item.FIRE_CRYSTAL, 1250),
+                    (Item.FC_FRAGMENT, 625),
+                    (Item.SPEEDUP, 18),
+                    (Item.DIAMOND, 1),
                 ]),
                 _day("VI", [
-                    ("행상 호송", 10000),
-                    ("행상 약탈", 10000),
-                    ("영주 장비", 22),
-                    ("영주 보석", 45),
-                    ("마스터리석", 1875),
-                    ("전용 장비", 3750),
-                    ("미스릴", 67500),
-                    ("레어 영웅 파편", 210),
-                    ("에픽 영웅 파편", 750),
-                    ("레전드 영웅 파편", 1875),
-                    ("펫 돌파", 30),
-                    ("고급 야성의 표식", 9370),
-                    ("일반 야성의 표식", 680),
-                    ("제련된 불의 수정", 18750),
-                    ("불의 수정", 1250),
-                    ("불의 수정 조각", 625),
-                    ("가속 사용", 18),
-                    ("다이아1개 소모", 1),
+                    (Item.ESCORT, 10000),
+                    (Item.RAID, 10000),
+                    (Item.LORD_GEAR, 22),
+                    (Item.LORD_GEM, 45),
+                    (Item.MASTERY_STONE, 1875),
+                    (Item.EXCLUSIVE_GEAR, 3750),
+                    (Item.MITHRIL, 67500),
+                    (Item.HERO_RARE, 210),
+                    (Item.HERO_EPIC, 750),
+                    (Item.HERO_LEGEND, 1875),
+                    (Item.PET_BREAK, 30),
+                    (Item.WILD_MARK_HIGH, 9370),
+                    (Item.WILD_MARK_NORMAL, 680),
+                    (Item.REFINED_FC, 18750),
+                    (Item.FIRE_CRYSTAL, 1250),
+                    (Item.FC_FRAGMENT, 625),
+                    (Item.SPEEDUP, 18),
+                    (Item.DIAMOND, 1),
                 ]),
             ]),
-            _multiday_event("빙원의 왕", [
-                _day("I", [("(항목 미정)", 0)]),
-                _day("II", [("(항목 미정)", 0)]),
-                _day("III", [("(항목 미정)", 0)]),
-                _day("IV", [("(항목 미정)", 0)]),
-                _day("V", [("(항목 미정)", 0)]),
-                _day("VI", [("(항목 미정)", 0)]),
-                _day("VII", [("(항목 미정)", 0)]),
-            ]),
+            _multiday_event("빙원의 왕", _tbd_days(["I", "II", "III", "IV", "V", "VI", "VII"])),
             _placeholder("연맹 총동원"),
         ],
     },
