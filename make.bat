@@ -22,7 +22,17 @@ if errorlevel 1 (
 )
 
 echo [3/4] 빌드...
-pyinstaller --onefile --windowed --name "WOS-Calculator" --icon "assets/icon.ico" --add-data "assets;assets" main.py --noconfirm
+py -m PyInstaller --version >nul 2>&1
+if errorlevel 1 (
+    echo      - PyInstaller 미설치, 설치 중...
+    py -m pip install pyinstaller
+    if errorlevel 1 (
+        echo [오류] PyInstaller 설치 실패. 중단합니다.
+        pause
+        exit /b 1
+    )
+)
+py -m PyInstaller --onefile --windowed --name "WOS-Calculator" --icon "assets/icon.ico" --add-data "assets;assets" main.py --noconfirm
 if errorlevel 1 (
     echo [오류] 빌드 실패. 중단합니다.
     pause
