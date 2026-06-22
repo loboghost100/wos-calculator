@@ -101,7 +101,7 @@ class TrainingCalc(ttk.Frame):
 
         if target > 0 and total_eff > 0:
             big_t = target / total_eff
-            lines = [f"필요 시간: {_fmt_time(big_t)}  ({int(round(big_t)):,}초)", ""]
+            lines = [f"필요 시간: {_fmt_time(big_t)}", ""]
             total_power = 0.0
             for name, p, t, eff in rows:
                 units = big_t / t if t > 0 else 0
