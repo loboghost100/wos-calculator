@@ -81,13 +81,16 @@ class MultiDayEventCalc(ttk.Frame):
         # 탭 개수 조절: dynamic 이벤트(연맹 Custom)에만. [−] N [+] (− 왼쪽, + 오른쪽)
         if self.dynamic:
             self.day_count = self._saved_count()
+            ttk.Style(self).configure("Tiny.TButton", padding=0)  # 버튼 내부 여백 최소
             ctrl = ttk.Frame(tabs)
             ctrl.pack(side="right")
-            ttk.Label(ctrl, text="탭 개수", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 8))
-            ttk.Button(ctrl, text="−", width=2, command=lambda: self._step(-1)).pack(side="left")
-            self.count_label = ttk.Label(ctrl, text=str(self.day_count), width=3, anchor="center")
-            self.count_label.pack(side="left", padx=2)
-            ttk.Button(ctrl, text="+", width=2, command=lambda: self._step(1)).pack(side="left")
+            ttk.Label(ctrl, text="탭 개수", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 4))
+            ttk.Button(ctrl, text="−", width=2, style="Tiny.TButton",
+                       command=lambda: self._step(-1)).pack(side="left")
+            self.count_label = ttk.Label(ctrl, text=str(self.day_count), width=2, anchor="center")
+            self.count_label.pack(side="left")
+            ttk.Button(ctrl, text="+", width=2, style="Tiny.TButton",
+                       command=lambda: self._step(1)).pack(side="left")
 
         ttk.Separator(self).pack(fill="x", pady=8)
 
