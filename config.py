@@ -72,14 +72,25 @@ def _day(label, items, defaults=None):
     }
 
 
-def _multiday_event(name, days, icon=None, rewards=None):
-    """날짜별로 항목이 다른 이벤트(예: 연맹 대작전 6일). days = [_day(...), ...]."""
+def _multiday_event(name, days, icon=None, rewards=None, bonus=False, editable=False):
+    """날짜별로 항목이 다른 이벤트(예: 연맹 대작전 6일). days = [_day(...), ...].
+
+    bonus:    True면 페이지에 '전문가의 도움'(배점 보너스 %) 입력칸을 둔다.
+    editable: True면 각 날짜를 보기/편집 토글로 유저가 항목·배점을 직접 관리한다.
+    """
     return {
         "name": name,
         "icon": icon,
         "rewards": rewards or [],
         "days": days,
+        "bonus": bonus,
+        "editable": editable,
     }
+
+
+def _custom_days(labels):
+    """라벨 목록 -> 빈 날짜 목록 (항목은 편집 모드에서 유저가 추가, userdata 로드)."""
+    return [_day(lbl, []) for lbl in labels]
 
 
 def _event(name, items, icon=None, rewards=None, defaults=None):
@@ -179,7 +190,8 @@ EVENT_GROUPS = [
     {
         "name": "연맹 이벤트",
         "events": [
-            _multiday_event("최강 왕국", _tbd_days(["I", "II", "III", "IV", "V"])),
+            _multiday_event("최강 왕국", _custom_days(["I", "II", "III", "IV", "V"]),
+                            icon="icon_svs.png", editable=True),
             _multiday_event("연맹 대작전", [
                 _day("I", [
                     (Item.ESCORT, 10000),
@@ -264,9 +276,16 @@ EVENT_GROUPS = [
                     (Item.SPEEDUP, 18),
                     (Item.DIAMOND, 1),
                 ]),
-            ]),
-            _multiday_event("빙원의 왕", _tbd_days(["I", "II", "III", "IV", "V", "VI", "VII"])),
-            _placeholder("연맹 총동원"),
+            ], icon="icon_alliance_operation.png", bonus=True),
+            _multiday_event("빙원의 왕", _tbd_days(["I", "II", "III", "IV", "V", "VI", "VII"]), icon="icon_frostfire_king.png"),
+            _placeholder("연맹 총동원", icon="icon_alliance_mobilization.png"),
+            {
+                "name": "Custom",
+                "icon": "icon_news.png",
+                "rewards": [],
+                "items": [],
+                "custom": True,  # 유저가 항목/배점을 직접 추가
+            },
         ],
     },
 ]

@@ -9,6 +9,7 @@ from tkinter import ttk
 
 from resources import resource, is_number, to_num
 from event_calc import EventCalc
+from editable_calc import EditableCalc
 
 
 class MultiDayEventCalc(ttk.Frame):
@@ -42,16 +43,20 @@ class MultiDayEventCalc(ttk.Frame):
             btn.pack(side="left", padx=(0, 4))
             self.tab_btns[label] = btn
 
-        # 배점 보너스 %: 페이지 공통(모든 날짜에 동일 적용). 탭 줄 오른쪽에 배치.
+        # 배점 보너스 %: bonus 플래그가 있는 이벤트(연맹 대작전)에만 표시.
+        # 페이지 공통(모든 날짜에 동일 적용), 탭 줄 오른쪽에 배치.
         # 저장은 기본 배점(보너스 미반영), 여기 입력한 %만큼 실효 배점을 올려서 보여준다.
         # 오른쪽 정렬이라 역순(%, 입력칸, 라벨)으로 pack해서 화면엔 "전문가의 도움 [ ] %"로 보이게 함.
-        self.bonus_var = tk.StringVar(value=store.event(self.base_key).get("bonus_pct", "0"))
-        vcmd = (self.register(is_number), "%P")
-        ttk.Label(tabs, text="%").pack(side="right", padx=(2, 0))
-        ttk.Entry(tabs, textvariable=self.bonus_var, width=5, justify="right",
-                  validate="key", validatecommand=vcmd).pack(side="right", padx=(4, 0))
-        ttk.Label(tabs, text="전문가의 도움", font=("Segoe UI", 10, "bold")).pack(side="right", padx=(12, 0))
-        self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
+        self.bonus_getter = None
+        if event.get("bonus"):
+            self.bonus_var = tk.StringVar(value=store.event(self.base_key).get("bonus_pct", "0"))
+            vcmd = (self.register(is_number), "%P")
+            ttk.Label(tabs, text="%").pack(side="right", padx=(2, 0))
+            ttk.Entry(tabs, textvariable=self.bonus_var, width=5, justify="right",
+                      validate="key", validatecommand=vcmd).pack(side="right", padx=(4, 0))
+            ttk.Label(tabs, text="전문가의 도움", font=("Segoe UI", 10, "bold")).pack(side="right", padx=(12, 0))
+            self.bonus_var.trace_add("write", lambda *a: self._on_bonus_change())
+            self.bonus_getter = self._mult
 
         ttk.Separator(self).pack(fill="x", pady=8)
 
@@ -75,9 +80,14 @@ class MultiDayEventCalc(ttk.Frame):
                 "defaults": day.get("defaults", {}),
                 "_key": f"{self.base_key}::{label}",
             }
-            self.bodies[label] = EventCalc(
-                self.body_area, pseudo, self.store, show_header=False,
-                bonus_getter=self._mult, points_editable=False)
+            if self.event.get("editable"):
+                # 보기/편집 토글로 유저가 직접 항목·배점 관리하는 날짜
+                self.bodies[label] = EditableCalc(
+                    self.body_area, pseudo, self.store, show_header=False)
+            else:
+                self.bodies[label] = EventCalc(
+                    self.body_area, pseudo, self.store, show_header=False,
+                    bonus_getter=self.bonus_getter, points_editable=False)
         self.bodies[label].pack(fill="both", expand=True)
 
         # 선택된 탭 강조
