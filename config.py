@@ -24,13 +24,17 @@ def _placeholder(name, icon=None):
     }
 
 
-def _event(name, items, icon=None, rewards=None):
-    """(이름, [(항목명, 기본배점), ...], 사이드바 아이콘, 보상 아이콘 목록) -> 이벤트 dict."""
+def _event(name, items, icon=None, rewards=None, defaults=None):
+    """(이름, [(항목명, 기본배점), ...], 사이드바 아이콘, 보상 아이콘 목록) -> 이벤트 dict.
+
+    defaults: 현재/목표 점수의 초기값 {"current": "0", "target": "20000"} (저장값 없을 때만 사용).
+    """
     return {
         "name": name,
         "icon": icon,
         "rewards": rewards or [],
         "items": [{"name": n, "points": p} for n, p in items],
+        "defaults": defaults or {},
     }
 
 
@@ -58,7 +62,7 @@ EVENT_GROUPS = [
                 "icon_legend_charm_part.png",
                 "icon_design_plan.png",
                 "icon_legend_skillbook.png",
-            ]),
+            ], defaults={"current": "0", "target": "20000"}),
             _event("군비 경쟁2", [
                 ("불의 수정", 100),
                 ("불의 수정 조각", 50),

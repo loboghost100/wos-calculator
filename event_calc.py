@@ -22,6 +22,7 @@ class EventCalc(ttk.Frame):
         self.key = event["_key"]
         saved = store.event(self.key)
         saved_points = saved.get("points", {})
+        defaults = event.get("defaults", {})
 
         self.point_vars = []
         self.need_labels = []
@@ -46,14 +47,14 @@ class EventCalc(ttk.Frame):
         score_row = ttk.Frame(self)
         score_row.pack(fill="x", pady=(0, 4))
         ttk.Label(score_row, text="현재 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
-        self.current_var = tk.StringVar(value=saved.get("current", ""))
+        self.current_var = tk.StringVar(value=saved.get("current") or defaults.get("current", ""))
         self.current_var.trace_add("write", lambda *a, v=self.current_var: comma_format(v) or self.recalc())
         comma_format(self.current_var)
         _ce = ttk.Entry(score_row, textvariable=self.current_var, width=12, justify="right")
         _ce.pack(side="left", padx=(4, 16))
         _ce.bind("<FocusOut>", lambda e: self.recalc())
         ttk.Label(score_row, text="목표 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
-        self.target_var = tk.StringVar(value=saved.get("target", ""))
+        self.target_var = tk.StringVar(value=saved.get("target") or defaults.get("target", ""))
         self.target_var.trace_add("write", lambda *a, v=self.target_var: comma_format(v) or self.recalc())
         comma_format(self.target_var)
         _te = ttk.Entry(score_row, textvariable=self.target_var, width=12, justify="right")
