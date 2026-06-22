@@ -29,15 +29,42 @@ def is_number(proposed):
     return proposed.count(".") <= 1 and all(c.isdigit() or c == "." for c in proposed)
 
 
+def _group_digits(digits):
+    """숫자 문자열에 천단위 콤마만 삽입(정수 변환 없이 앞자리 0 유지). 빈 문자열은 그대로."""
+    if not digits:
+        return ""
+    parts = []
+    while len(digits) > 3:
+        parts.insert(0, digits[-3:])
+        digits = digits[:-3]
+    parts.insert(0, digits)
+    return ",".join(parts)
+
+
 def comma_format(var):
-    """StringVar 값을 '숫자만 + 천단위 콤마' 정수 표기로 정규화.
+    """StringVar 값을 '숫자만 + 천단위 콤마'로 정규화 (앞자리 0 유지 — 편집 중 자리 보존).
+    예: '300,000'에서 앞 3을 지워 '00,000'이 돼도 0으로 무너지지 않음.
     값이 바뀌면 var.set() 후 True 반환(트레이스 재진입으로 recalc 처리)."""
     digits = "".join(c for c in var.get() if c.isdigit())
-    formatted = f"{int(digits):,}" if digits else ""
+    formatted = _group_digits(digits)
     if formatted != var.get():
         var.set(formatted)
         return True
     return False
+
+
+def comma_normalize(var):
+    """앞자리 0 정리 후 콤마 재포맷 (입력칸에서 포커스가 벗어날 때 호출).
+    전부 0이면 '0', 빈 값이면 '' 로 정리."""
+    digits = "".join(c for c in var.get() if c.isdigit())
+    if digits == "":
+        normalized = ""
+    else:
+        stripped = digits.lstrip("0")
+        normalized = stripped if stripped else "0"
+    formatted = _group_digits(normalized)
+    if formatted != var.get():
+        var.set(formatted)
 
 
 def to_num(s):

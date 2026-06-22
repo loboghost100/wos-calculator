@@ -3,7 +3,7 @@ import math
 import tkinter as tk
 from tkinter import ttk
 
-from resources import resource, is_number, comma_format, to_num
+from resources import resource, is_number, comma_format, comma_normalize, to_num
 from config import item_col_minsize
 
 
@@ -70,14 +70,14 @@ class EventCalc(ttk.Frame):
         comma_format(self.target_var)
         _te = ttk.Entry(score_row, textvariable=self.target_var, width=12, justify="right")
         _te.pack(side="left", padx=(4, 16))
-        _te.bind("<FocusOut>", lambda e: self.recalc())
+        _te.bind("<FocusOut>", lambda e, v=self.target_var: (comma_normalize(v), self.recalc()))
         ttk.Label(score_row, text="현재 점수:", font=("Segoe UI", 10, "bold")).pack(side="left")
         self.current_var = tk.StringVar(value=saved.get("current") or defaults.get("current", ""))
         self.current_var.trace_add("write", lambda *a, v=self.current_var: (comma_format(v), self.recalc()))
         comma_format(self.current_var)
         _ce = ttk.Entry(score_row, textvariable=self.current_var, width=12, justify="right")
         _ce.pack(side="left", padx=4)
-        _ce.bind("<FocusOut>", lambda e: self.recalc())
+        _ce.bind("<FocusOut>", lambda e, v=self.current_var: (comma_normalize(v), self.recalc()))
 
         # 필요 점수 표시
         self.gap_label = ttk.Label(self, text="", font=("Segoe UI", 11, "bold"), foreground="#1a5fb4")
