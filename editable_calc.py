@@ -121,7 +121,8 @@ class EditableCalc(ttk.Frame):
             if self.editing:
                 nvar = tk.StringVar(value=it["name"])
                 nvar.trace_add("write", lambda *a, idx=i - 1, v=nvar: self._on_name(idx, v))
-                ttk.Entry(self.list_frame, textvariable=nvar, width=18).grid(
+                ef = ("Segoe UI", 10, "bold") if it.get("bold") else ("Segoe UI", 10)
+                ttk.Entry(self.list_frame, textvariable=nvar, width=18, font=ef).grid(
                     row=i, column=0, sticky="w", padx=3, pady=2)
                 self.name_vars.append(nvar)
 
@@ -134,6 +135,9 @@ class EditableCalc(ttk.Frame):
 
                 acts = ttk.Frame(self.list_frame)
                 acts.grid(row=i, column=2, columnspan=2, sticky="e", padx=3, pady=2)
+                bvar = tk.BooleanVar(value=bool(it.get("bold")))
+                ttk.Checkbutton(acts, text="B", width=2, style="Toolbutton", variable=bvar,
+                                command=lambda idx=i - 1, v=bvar: self._set_bold(idx, v)).pack(side="left", padx=(0, 8))
                 up = ttk.Button(acts, text="▲", width=2, style="Tiny.TButton",
                                 command=lambda idx=i - 1: self._move(idx, -1))
                 up.pack(side="left")
@@ -147,10 +151,11 @@ class EditableCalc(ttk.Frame):
                 ttk.Button(acts, text="삭제", width=5,
                            command=lambda idx=i - 1: self._delete(idx)).pack(side="left")
             else:
-                ttk.Label(self.list_frame, text=it["name"]).grid(row=i, column=0, sticky="w", padx=3, pady=2)
+                nf = ("Segoe UI", 10, "bold") if it.get("bold") else ("Segoe UI", 10)
+                ttk.Label(self.list_frame, text=it["name"], font=nf).grid(row=i, column=0, sticky="w", padx=3, pady=2)
                 ttk.Label(self.list_frame, text=_fmt_points(to_num(it.get("points", "0"))),
-                          anchor="e", font=("Segoe UI", 10)).grid(row=i, column=1, sticky="e", padx=3, pady=2)
-                need = ttk.Label(self.list_frame, text="-", anchor="e", font=("Segoe UI", 10))
+                          anchor="e", font=nf).grid(row=i, column=1, sticky="e", padx=3, pady=2)
+                need = ttk.Label(self.list_frame, text="-", anchor="e", font=nf)
                 need.grid(row=i, column=2, sticky="e", padx=3, pady=2)
                 self.need_labels.append(need)
 
@@ -189,6 +194,12 @@ class EditableCalc(ttk.Frame):
         j = idx + delta
         if 0 <= idx < len(self.items) and 0 <= j < len(self.items):
             self.items[idx], self.items[j] = self.items[j], self.items[idx]
+            self._save_items()
+            self._render()
+
+    def _set_bold(self, idx, var):
+        if 0 <= idx < len(self.items):
+            self.items[idx]["bold"] = var.get()
             self._save_items()
             self._render()
 
