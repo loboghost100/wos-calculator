@@ -35,6 +35,7 @@ class EditableCalc(ttk.Frame):
                           for it in event.get("items", [])]
         self.editing = False
         self._vcmd = (self.register(is_number), "%P")
+        ttk.Style(self).configure("Tiny.TButton", padding=0)  # ▲▼ 버튼 여백 최소
         self.need_labels = []
         self.name_vars = []
         self.point_vars = []
@@ -131,9 +132,20 @@ class EditableCalc(ttk.Frame):
                     row=i, column=1, sticky="e", padx=3, pady=2)
                 self.point_vars.append(pvar)
 
-                ttk.Button(self.list_frame, text="삭제", width=5,
-                           command=lambda idx=i - 1: self._delete(idx)).grid(
-                    row=i, column=2, padx=(8, 3), pady=2)
+                acts = ttk.Frame(self.list_frame)
+                acts.grid(row=i, column=2, columnspan=2, sticky="e", padx=3, pady=2)
+                up = ttk.Button(acts, text="▲", width=2, style="Tiny.TButton",
+                                command=lambda idx=i - 1: self._move(idx, -1))
+                up.pack(side="left")
+                if i - 1 == 0:
+                    up.state(["disabled"])
+                down = ttk.Button(acts, text="▼", width=2, style="Tiny.TButton",
+                                  command=lambda idx=i - 1: self._move(idx, 1))
+                down.pack(side="left", padx=(2, 8))
+                if i - 1 == len(self.items) - 1:
+                    down.state(["disabled"])
+                ttk.Button(acts, text="삭제", width=5,
+                           command=lambda idx=i - 1: self._delete(idx)).pack(side="left")
             else:
                 ttk.Label(self.list_frame, text=it["name"]).grid(row=i, column=0, sticky="w", padx=3, pady=2)
                 ttk.Label(self.list_frame, text=_fmt_points(to_num(it.get("points", "0"))),
@@ -170,6 +182,13 @@ class EditableCalc(ttk.Frame):
     def _delete(self, idx):
         if 0 <= idx < len(self.items):
             del self.items[idx]
+            self._save_items()
+            self._render()
+
+    def _move(self, idx, delta):
+        j = idx + delta
+        if 0 <= idx < len(self.items) and 0 <= j < len(self.items):
+            self.items[idx], self.items[j] = self.items[j], self.items[idx]
             self._save_items()
             self._render()
 
